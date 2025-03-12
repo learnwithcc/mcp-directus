@@ -9,8 +9,21 @@ export function getItems(directusClient: AxiosInstance) {
    */
   const fn = async ({ collection, query = {} }: { collection: string; query?: Record<string, any> }) => {
     try {
-      const response = await directusClient.get(`/items/${collection}`, { params: query });
-      return response.data.data;
+      // Handle special system collections
+      if (collection === 'directus_users') {
+        const response = await directusClient.get('/users', { params: query });
+        return response.data.data;
+      } else if (collection === 'directus_files') {
+        const response = await directusClient.get('/files', { params: query });
+        return response.data.data;
+      } else if (collection === 'directus_roles') {
+        const response = await directusClient.get('/roles', { params: query });
+        return response.data.data;
+      } else {
+        // Standard collection
+        const response = await directusClient.get(`/items/${collection}`, { params: query });
+        return response.data.data;
+      }
     } catch (error) {
       console.error('Error getting items:', error);
       throw error;

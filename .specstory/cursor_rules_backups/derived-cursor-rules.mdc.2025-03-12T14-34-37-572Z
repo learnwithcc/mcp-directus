@@ -1,7 +1,3 @@
----
-description: Cursor rules derived by SpecStory from the project AI interaction history
-globs: *
----
 
 ## PROJECT OVERVIEW
 This project aims to build a Directus Multi-purpose Control Panel (MCP) server.  The server will provide a set of tools to interact with a Directus instance.  A pre-existing Directus instance is used for testing at https://directus-dev.learnwith.cc and a local instance at `http://localhost:8077`.
@@ -55,12 +51,11 @@ mcp-directus
 - Release process will be defined later.
 - Build and run scripts added to `package.json`:  `npm run build`, `npm run start`, `npm run dev`.
 - Build process confirmed functional on 2025-03-12.
-- **Troubleshooting Build Errors:** If `tsc` command is not found, ensure TypeScript is installed globally or locally and dependencies are installed using `npm install`.  A successful build creates a `dist` directory containing compiled JavaScript files. Running `npm start` starts the server; check server logs for errors.  Running the server with `NODE_DEBUG=http,net node dist/index.js > server.log 2>&1 &` provides verbose debugging output.
+
 
 ## REFERENCE EXAMPLES
 - Refer to the `Building a Directus MCP Server_ Comprehensive Impl.md` document for detailed implementation steps.
 - 2025-03-12_10-13-tech-stack-rationale-and-components-overview.md details the tech stack rationale.
-- 2025-03-12_10-28-building-directus-project-with-updated-credentials.md details the troubleshooting steps for building and running the project.
 
 
 ## PROJECT DOCUMENTATION & CONTEXT SYSTEM
@@ -72,7 +67,6 @@ mcp-directus
 ## DEBUGGING
 - Utilize `console.log` for debugging purposes.  More sophisticated debugging tools may be added later.
 - Nodemon will be used for development to automatically restart the server on code changes.
-- For detailed debugging, run the server with `NODE_DEBUG=http,net node dist/index.js > server.log 2>&1 &` to capture verbose output in `server.log`.
 
 ## FINAL DOs AND DON'Ts
 - **DO** follow the folder structure and coding standards outlined in this file.
