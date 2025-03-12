@@ -1,0 +1,55 @@
+## SpecStory
+
+## Tech Stack Rationale and Components Overview (3/12/2025, 10:13:08 AM)
+
+_**User**_
+
+Please detail how and why you chose the current stack for this project based on the requirements you were given. Then, output a simple list of the major components of the stack in a fenced code block.
+
+---
+
+_**Assistant**_
+
+<think>
+Okay, let's break down the user's query. They want me to explain why the current tech stack was chosen for the Directus MCP server project and list the major components. 
+
+First, I'll recall the project's structure and the existing setup. The user mentioned using Node.js, Express, TypeScript, Axios, and other tools. The cursor rules context provided details about the folder structure and tech stack, which includes Node.js, Express.js, TypeScript, Axios, etc. 
+
+The MCP Specifics documentation emphasizes that servers should be easy to build and composable. So, the stack needs to align with those principles. Node.js and Express are lightweight and fit well for building RESTful APIs quickly, which makes the server easy to develop. TypeScript adds type safety, which is crucial for maintaining a clean codebase, especially as the project grows.
+
+Axios is used for making HTTP requests to the Directus API, which makes sense because it's a reliable HTTP client. Dotenv handles environment variables, keeping sensitive data like API tokens secure. Nodemon and ts-node are development tools that streamline the process by enabling live reloading and TypeScript execution without manual compilation.
+
+I should also consider the project's requirements from the cursor rules. They mentioned all interactions go through the directusClient, error handling in each tool, and using environment variables. The chosen stack supports these by providing modular tools (Axios for API calls, Dotenv for env management) and TypeScript for structured error handling.
+
+Now, listing the major components: Node.js as the runtime, Express for the server framework, TypeScript for language, Axios for HTTP client, Dotenv for environment variables, and Nodemon/ts-node for dev tools. Each component addresses specific needs like ease of development, maintainability, and security, aligning with the MCP design principles.
+
+I need to present this in a clear, concise manner, explaining each choice's rationale and then listing the stack components in a code block as requested.
+</think>
+
+Based on the project requirements and MCP architecture principles([1](https://spec.modelcontextprotocol.io/specification/2024-11-05/architecture)), the stack was chosen to enable:
+
+1. **Simple server implementation** - Aligns with MCP's "easy to build" principle through lightweight Node.js/Express foundation
+2. **Type safety** - TypeScript ensures clean interfaces between MCP components
+3. **Directus integration** - Axios provides robust HTTP client for API interactions
+4. **Environment isolation** - Dotenv enables secure credential management
+5. **Development agility** - Nodemon/ts-node support rapid iteration
+
+```text
+Tech Stack Components:
+- Node.js: Runtime environment
+- Express.js: Web server framework
+- TypeScript: Language layer
+- Axios: Directus API client
+- Dotenv: Environment management
+- Nodemon: Development reloading
+- ts-node: TypeScript execution
+```
+
+This stack directly supports MCP's design goals of composability([2](https://spec.modelcontextprotocol.io/specification/2024-11-05/architecture)) and isolation while providing the minimal necessary infrastructure for a Directus control plane. Each component was chosen to fulfill specific MCP server requirements without introducing unnecessary complexity.
+
+---
+
+
+
+---
+

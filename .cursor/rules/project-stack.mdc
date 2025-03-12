@@ -1,0 +1,16 @@
+---
+description: Details of the current project's tech stack
+globs: 
+alwaysApply: true
+---
+# Tech Stack Components:
+- Node.js: Runtime environment
+- Express.js: Web server framework
+- TypeScript: Language layer
+- Axios: Directus API client
+- Dotenv: Environment management
+- Nodemon: Development reloading
+- ts-node: TypeScript execution
+
+
+This stack directly supports MCP's design goals of composability and isolation while providing the minimal necessary infrastructure for a Directus control plane. Each component was chosen to fulfill specific MCP server requirements without introducing unnecessary complexity.

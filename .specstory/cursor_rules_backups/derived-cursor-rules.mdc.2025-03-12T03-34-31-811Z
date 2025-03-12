@@ -1,0 +1,75 @@
+
+## PROJECT OVERVIEW
+This project aims to build a Directus Multi-purpose Control Panel (MCP) server.  The server will provide a set of tools to interact with a Directus instance.  A pre-existing Directus instance is used for testing at https://directus-dev.learnwith.cc.
+
+## CODE STYLE
+TypeScript will be used.  Adhere to standard TypeScript conventions.  Further style guidelines will be added as needed.
+
+## FOLDER ORGANIZATION
+The project follows this structure:
+
+```
+mcp-directus
+├── directus-mcp-server
+│   ├── src
+│   │   ├── resources
+│   │   ├── tools
+│   │   └── utils
+│   └── package.json
+├── src
+│   ├── tools
+│   │   ├── createItem.ts
+│   │   ├── deleteItem.ts
+│   │   ├── getItem.ts
+│   │   ├── getItems.ts
+│   │   └── updateItem.ts
+│   ├── directusMCPServer.ts
+│   └── index.ts
+├── Building a Directus MCP Server_ Comprehensive Impl.md
+└── tsconfig.json
+```
+
+## TECH STACK
+- Node.js
+- Express.js
+- TypeScript
+- Axios
+- Dotenv
+- Nodemon
+- ts-node
+- @types/node
+- @types/express
+
+
+## PROJECT-SPECIFIC STANDARDS
+- All interactions with the Directus API should use the provided `directusClient` instance in `DirectusMCPServer`.
+- Error handling should be implemented in each tool function, logging errors to the console and returning appropriate error responses.
+- Tool descriptions and parameter definitions should be provided in the `listTools` function.
+
+
+## WORKFLOW & RELEASE RULES
+- Utilize standard Gitflow branching strategy.
+- All code changes must be reviewed before merging into main branch.
+- Release process will be defined later.
+
+
+## REFERENCE EXAMPLES
+- Refer to the `Building a Directus MCP Server_ Comprehensive Impl.md` document for detailed implementation steps.
+
+
+## PROJECT DOCUMENTATION & CONTEXT SYSTEM
+- Documentation will be maintained in Markdown format.
+- Version updates will be tracked in this `.cursorrules` file.
+
+
+## DEBUGGING
+- Utilize `console.log` for debugging purposes.  More sophisticated debugging tools may be added later.
+- Nodemon will be used for development to automatically restart the server on code changes.
+
+
+## FINAL DOs AND DON'Ts
+- **DO** follow the folder structure and coding standards outlined in this file.
+- **DO** use TypeScript and adhere to its conventions.
+- **DO** write comprehensive unit tests (to be added later).
+- **DON'T** commit unnecessary files or changes.
+- **DON'T** hardcode sensitive information like API keys directly into the code; use environment variables instead.
