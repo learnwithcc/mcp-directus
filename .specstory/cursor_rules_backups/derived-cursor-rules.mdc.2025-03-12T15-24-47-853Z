@@ -1,10 +1,6 @@
----
-description: Cursor rules derived by SpecStory from the project AI interaction history
-globs: *
----
 
 ## PROJECT OVERVIEW
-This project aims to build a Directus Multi-purpose Control Panel (MCP) server.  The server will provide a set of tools to interact with a Directus instance.  A pre-existing Directus instance is used for testing at https://directus-dev.learnwith.cc and a local instance at `http://localhost:8077`.  Directus version 11.5.1 is used for testing.
+This project aims to build a Directus Multi-purpose Control Panel (MCP) server.  The server will provide a set of tools to interact with a Directus instance.  A pre-existing Directus instance is used for testing at https://directus-dev.learnwith.cc and a local instance at `http://localhost:8077`.
 
 ## CODE STYLE
 TypeScript will be used.  Adhere to standard TypeScript conventions.  Further style guidelines will be added as needed.
@@ -50,10 +46,10 @@ mcp-directus
 
 ## PROJECT-SPECIFIC STANDARDS
 - All interactions with the Directus API should use the provided `directusClient` instance in `DirectusMCPServer`.
-- Error handling should be implemented in each tool function, logging errors to the console and returning appropriate error responses.  Server error responses should include detailed error information from the Directus API response, if available.
+- Error handling should be implemented in each tool function, logging errors to the console and returning appropriate error responses.
 - Tool descriptions and parameter definitions should be provided in the `listTools` function.
 - Special handling for system collections (`directus_users`, `directus_files`, `directus_roles`) using appropriate endpoints (`/users`, `/files`, `/roles`).  **The MCP server should never modify system collections.** Only user-created collections should be managed.
-- **New Requirement (2025-03-12):** Add functionality to create Directus collections.  This includes single collections and collections with relationships (M2M or M2O).  Further details on implementation will be added as needed.  New files `createCollection.ts`, `createField.ts`, `createRelation.ts`, and `createManyToManyRelation.ts` have been added to the `src/tools` directory to handle this functionality.  Testing of single and M2M/M2O collection creation is required.  Refer to Directus API documentation for details on implementation.  The MCP server must not interact with Directus system collections.
+- **New Requirement (2025-03-12):** Add functionality to create Directus collections.  This includes single collections and collections with relationships (M2M or M2O).  Further details on implementation will be added as needed.  New files `createCollection.ts`, `createField.ts`, `createRelation.ts`, and `createManyToManyRelation.ts` have been added to the `src/tools` directory to handle this functionality.  Testing of single and M2M/M2O collection creation is required.  Refer to Directus API documentation for details on implementation.
 
 ## WORKFLOW & RELEASE RULES
 - Utilize standard Gitflow branching strategy.
@@ -77,13 +73,12 @@ mcp-directus
 - Version 1.0.0 initial implementation completed on 2025-03-12.
 - Example `claude_desktop_config.json` added on 2025-03-12 for Claude Desktop integration.
 - Collection creation testing initiated on 2025-03-12.
-- Directus API version 11.5.1 confirmed on 2025-03-12.
+
 
 ## DEBUGGING
 - Utilize `console.log` for debugging purposes.  More sophisticated debugging tools may be added later.
 - Nodemon will be used for development to automatically restart the server on code changes.
-- For detailed debugging, run the server with `NODE_DEBUG=http,net node dist/index.js > server.log 2>&1 &` to capture verbose output in `server.log`.  The server should log detailed information about each tool invocation, including parameters and results or errors.
-- Server logging improved on 2025-03-12 to provide more detailed error information, including HTTP status codes and Directus API error responses.
+- For detailed debugging, run the server with `NODE_DEBUG=http,net node dist/index.js > server.log 2>&1 &` to capture verbose output in `server.log`.
 
 ## FINAL DOs AND DON'Ts
 - **DO** follow the folder structure and coding standards outlined in this file.

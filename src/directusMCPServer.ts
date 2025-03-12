@@ -6,6 +6,11 @@ import { updateItem } from './tools/updateItem';
 import { deleteItem } from './tools/deleteItem';
 import { uploadFile } from './tools/uploadFile';
 import { searchItems } from './tools/searchItems';
+import { createCollection } from './tools/createCollection';
+import { createField } from './tools/createField';
+import { createRelation } from './tools/createRelation';
+import { createManyToManyRelation } from './tools/createManyToManyRelation';
+import { testConnection } from './tools/testConnection';
 
 interface Tool {
   (params: any): Promise<any>;
@@ -39,7 +44,12 @@ export class DirectusMCPServer {
       updateItem: updateItem(directusClient),
       deleteItem: deleteItem(directusClient),
       uploadFile: uploadFile(directusClient),
-      searchItems: searchItems(directusClient)
+      searchItems: searchItems(directusClient),
+      createCollection: createCollection(directusClient),
+      createField: createField(directusClient),
+      createRelation: createRelation(directusClient),
+      createManyToManyRelation: createManyToManyRelation(directusClient),
+      testConnection: testConnection(directusClient)
     };
   }
 
