@@ -11,6 +11,8 @@ import { createField } from './tools/createField';
 import { createRelation } from './tools/createRelation';
 import { createManyToManyRelation } from './tools/createManyToManyRelation';
 import { testConnection } from './tools/testConnection';
+import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
+import { validateCollection } from './tools/validateCollection';
 
 interface Tool {
   (params: any): Promise<any>;
@@ -49,7 +51,9 @@ export class DirectusMCPServer {
       createField: createField(directusClient),
       createRelation: createRelation(directusClient),
       createManyToManyRelation: createManyToManyRelation(directusClient),
-      testConnection: testConnection(directusClient)
+      testConnection: testConnection(directusClient),
+      diagnoseMCPPermissions: diagnoseMCPPermissions(directusClient),
+      validateCollection: validateCollection(directusClient)
     };
   }
 

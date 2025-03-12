@@ -23,6 +23,7 @@
  */
 
 import { AxiosInstance } from 'axios';
+import { validateCollection } from './validateCollection';
 
 export function createField(directusClient: AxiosInstance) {
   /**
@@ -48,6 +49,23 @@ export function createField(directusClient: AxiosInstance) {
     schema?: Record<string, any>;
   }) => {
     try {
+      console.log(`Creating field "${field}" in collection "${collection}" with type "${type}"`);
+      
+      // First, validate that this is a true collection
+      const validateCollectionFn = validateCollection(directusClient);
+      const validationResult = await validateCollectionFn({ collection });
+      
+      if (validationResult.error) {
+        console.warn(`Collection validation warning: ${validationResult.error}`);
+        // Continue anyway since this is just a warning
+      } else if (validationResult.result && !validationResult.result.is_valid_collection) {
+        throw new Error(
+          `Cannot create field in "${collection}": ${validationResult.result.message}\n` +
+          `This appears to be a pseudo-collection or folder, not a database table. ` +
+          `Try deleting and recreating this collection.`
+        );
+      }
+
       // Validate we're not modifying system collections
       if (collection.startsWith('directus_')) {
         throw new Error('Cannot modify fields in system collections. Only user collections are allowed.');
@@ -73,18 +91,18 @@ export function createField(directusClient: AxiosInstance) {
         ...schema
       };
       
-      // Prepare the request payload according to Directus 11.5.1 API
+      // Prepare the request payload according to Directus 11.5.1 API requirements
+      // Note: We're not including the collection in the payload as it's already in the URL
       const fieldData = {
-        collection,
         field,
         type,
         meta: defaultMeta,
         schema: defaultSchema
       };
       
-      console.log('Sending field creation request:', JSON.stringify(fieldData, null, 2));
+      console.log('Sending field creation request with payload:', JSON.stringify(fieldData, null, 2));
       
-      // Use the /fields/{collection} endpoint for Directus 11.5.1
+      // Make the API request to create the field
       const response = await directusClient.post(`/fields/${collection}`, fieldData);
       
       console.log('Field created successfully');
@@ -98,7 +116,22 @@ export function createField(directusClient: AxiosInstance) {
         
         // Provide more helpful error messages based on common issues
         if (error.response.status === 403) {
-          throw new Error(`Permission denied when creating field "${field}". Ensure your token has admin privileges and appropriate policies to modify schema.`);
+          const diagnosticMessage = `
+PERMISSION DENIED: Unable to create field "${field}" in collection "${collection}"
+
+DIAGNOSTIC INFORMATION:
+- You are using an admin token, but it may not have sufficient permissions for schema modifications
+- The testConnection tool reports schema permissions as: ${await checkSchemaPermissions(directusClient)}
+- Directus 11.5.1 uses a policy-based permission system that may restrict schema modifications
+
+POSSIBLE SOLUTIONS:
+1. Check your admin role permissions in the Directus admin UI
+2. Create the field manually through the Directus admin UI
+3. Use the Directus CLI or Migration system for schema changes
+4. Check if any plugins or extensions are affecting schema modification permissions
+`;
+          console.error(diagnosticMessage);
+          throw new Error(`Permission denied when creating field "${field}". Ensure your token has admin privileges and appropriate policies to modify schema. You may need to manually create this field via the Directus admin UI.`);
         } else if (error.response.status === 400) {
           const errorMessage = error.response.data?.errors?.[0]?.message || 'Invalid request format';
           throw new Error(`Bad request when creating field "${field}": ${errorMessage}`);
@@ -143,6 +176,28 @@ export function createField(directusClient: AxiosInstance) {
 }
 
 /**
+ * Helper function to check schema permissions
+ */
+async function checkSchemaPermissions(directusClient: AxiosInstance): Promise<string> {
+  try {
+    // Get current user info
+    const userResponse = await directusClient.get('/users/me');
+    const user = userResponse.data.data;
+    
+    // Check if user has admin role
+    const isAdmin = user.role?.admin_access === true;
+    
+    if (isAdmin) {
+      return "User has admin role with admin_access=true";
+    } else {
+      return "User does not have admin role or admin_access=false";
+    }
+  } catch (error) {
+    return "Unable to determine schema permissions";
+  }
+}
+
+/**
  * Helper function to get the default interface for a field type
  */
 function getDefaultInterfaceForType(type: string): string {
@@ -151,22 +206,22 @@ function getDefaultInterfaceForType(type: string): string {
       return 'input';
     case 'text':
       return 'input-multiline';
-    case 'boolean':
-      return 'toggle';
     case 'integer':
     case 'bigInteger':
     case 'float':
     case 'decimal':
       return 'input';
-    case 'dateTime':
+    case 'boolean':
+      return 'boolean';
     case 'date':
+      return 'datetime';
+    case 'datetime':
+      return 'datetime';
     case 'time':
       return 'datetime';
     case 'json':
-    case 'csv':
       return 'input-code';
     case 'uuid':
-    case 'hash':
       return 'input';
     default:
       return 'input';
@@ -181,22 +236,20 @@ function getDefaultDisplayForType(type: string): string {
     case 'string':
     case 'text':
       return 'formatted-value';
-    case 'boolean':
-      return 'boolean';
     case 'integer':
     case 'bigInteger':
     case 'float':
     case 'decimal':
       return 'formatted-value';
-    case 'dateTime':
+    case 'boolean':
+      return 'boolean';
     case 'date':
+    case 'datetime':
     case 'time':
       return 'datetime';
     case 'json':
-    case 'csv':
       return 'formatted-value';
     case 'uuid':
-    case 'hash':
       return 'formatted-value';
     default:
       return 'formatted-value';
@@ -204,7 +257,7 @@ function getDefaultDisplayForType(type: string): string {
 }
 
 /**
- * Helper function to get the SQL type for a field type
+ * Helper function to map Directus field types to SQL types
  */
 function getSQLTypeForFieldType(type: string): string {
   switch (type) {
@@ -212,8 +265,6 @@ function getSQLTypeForFieldType(type: string): string {
       return 'varchar';
     case 'text':
       return 'text';
-    case 'boolean':
-      return 'boolean';
     case 'integer':
       return 'integer';
     case 'bigInteger':
@@ -221,21 +272,19 @@ function getSQLTypeForFieldType(type: string): string {
     case 'float':
       return 'float';
     case 'decimal':
-      return 'decimal';
-    case 'dateTime':
-      return 'timestamp';
+      return 'numeric';
+    case 'boolean':
+      return 'boolean';
     case 'date':
       return 'date';
+    case 'datetime':
+      return 'datetime';
     case 'time':
       return 'time';
     case 'json':
       return 'json';
-    case 'csv':
-      return 'text';
     case 'uuid':
       return 'uuid';
-    case 'hash':
-      return 'varchar';
     default:
       return 'varchar';
   }
