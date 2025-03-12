@@ -4500,6 +4500,32 @@ The tests show that the MCP server provides a functional framework for managing 
 
 ---
 
+_**User**_
+
+Let's create the proposed deleteCollection tool please.
+
+---
+
+_**Assistant**_
+
+<think>The user wants to implement the `deleteCollection` tool that was identified as a needed improvement during the previous test. Based on the test results and the code I've reviewed, I need to:
+
+1. Create a new file `src/tools/deleteCollection.ts` that implements the functionality to delete a collection from Directus
+2. Follow the existing patterns and structure in the other tool files
+3. Make sure it handles errors properly
+4. Add error handling for system collections (preventing deletion of collections that start with "directus_")
+5. Document the tool functionality
+
+I should implement this following the same patterns used in the other tool files in the project, especially looking at `createCollection.ts` for inspiration but inverting the operation.</think>I'll create a new `deleteCollection` tool following the patterns established in the other tools. This will make collection management easier and complete the CRUD operations for collections.
+
+---
+
+_****_
+
+
+
+---
+
 _****_
 
 

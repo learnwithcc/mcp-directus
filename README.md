@@ -73,6 +73,7 @@ The MCP server exposes the following tools:
 | createField | Create a new field in a collection | collection, field, type |
 | createRelation | Create a relation between collections | collection, field, related_collection |
 | createManyToManyRelation | Create a many-to-many relation | collections, fields |
+| deleteCollection | Delete a collection from Directus | name, force (optional) |
 | testConnection | Test connection to Directus and check permissions | - |
 | diagnoseMCPPermissions | Diagnose permission issues with the MCP server | - |
 | validateCollection | Validate if a collection is a true database table or a pseudo-collection | collection, invasive_test (optional) |
@@ -115,6 +116,46 @@ The tool returns detailed validation results:
   }
 }
 ```
+
+## Collection Deletion
+
+The `deleteCollection` tool allows you to safely delete collections from your Directus instance.
+
+### Usage
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"name": "your_collection_name"}' \
+  http://localhost:3000/mcp/v1/tools/deleteCollection
+```
+
+Optional parameters:
+- `force` (boolean): Whether to attempt force deletion even if the collection isn't empty. Default: false.
+
+### Response
+
+The tool returns a deletion status:
+
+```json
+{
+  "result": {
+    "status": "success",
+    "message": "Collection \"your_collection_name\" deleted successfully",
+    "collection": "your_collection_name"
+  }
+}
+```
+
+### Error Handling
+
+The tool provides helpful error messages for common situations:
+
+- Attempting to delete system collections (starting with `directus_`)
+- Permission denied (403)
+- Collection not found (404)
+- Dependencies or constraints preventing deletion (409)
+
+If you encounter constraint errors, you may need to delete related fields or collections first, or modify your schema to remove constraints.
 
 ## Connecting to AI Clients
 

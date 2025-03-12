@@ -13,6 +13,7 @@ import { createManyToManyRelation } from './tools/createManyToManyRelation';
 import { testConnection } from './tools/testConnection';
 import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
+import { deleteCollection } from './tools/deleteCollection';
 
 interface Tool {
   (params: any): Promise<any>;
@@ -53,7 +54,8 @@ export class DirectusMCPServer {
       createManyToManyRelation: createManyToManyRelation(directusClient),
       testConnection: testConnection(directusClient),
       diagnoseMCPPermissions: diagnoseMCPPermissions(directusClient),
-      validateCollection: validateCollection(directusClient)
+      validateCollection: validateCollection(directusClient),
+      deleteCollection: deleteCollection(directusClient)
     };
   }
 

@@ -89,8 +89,8 @@ async function testBasicCollectionOperations() {
     console.log('\nDeleting the collection...');
     
     try {
-      await directusClient.delete(`/collections/${testCollectionName}`);
-      console.log(`Collection "${testCollectionName}" deleted successfully`);
+      const deleteResult = await mcpServer.invokeTool('deleteCollection', { name: testCollectionName });
+      console.log(`Collection "${testCollectionName}" deleted successfully:`, deleteResult.result);
     } catch (error: any) {
       console.error(`Error deleting collection:`, error.message);
     }
@@ -221,7 +221,7 @@ async function testComplexRelationCollections() {
     
     // Delete junction collection (this should delete the M2M relation fields too)
     console.log('Deleting junction collection...');
-    await directusClient.delete(`/collections/${junctionCollection}`);
+    await mcpServer.invokeTool('deleteCollection', { name: junctionCollection });
     
     // Delete product fields
     console.log('Deleting product fields...');
@@ -237,10 +237,10 @@ async function testComplexRelationCollections() {
     
     // Delete main collections
     console.log('Deleting products collection...');
-    await directusClient.delete(`/collections/${productsCollection}`);
+    await mcpServer.invokeTool('deleteCollection', { name: productsCollection });
     
     console.log('Deleting categories collection...');
-    await directusClient.delete(`/collections/${categoriesCollection}`);
+    await mcpServer.invokeTool('deleteCollection', { name: categoriesCollection });
     
     console.log('\nComplex relation collections test completed successfully!');
     return true;
@@ -256,9 +256,9 @@ async function testComplexRelationCollections() {
       console.log('\nAttempting cleanup after error...');
       
       // Delete collections
-      await directusClient.delete(`/collections/${junctionCollection}`).catch(() => {});
-      await directusClient.delete(`/collections/${productsCollection}`).catch(() => {});
-      await directusClient.delete(`/collections/${categoriesCollection}`).catch(() => {});
+      await mcpServer.invokeTool('deleteCollection', { name: junctionCollection }).catch(() => {});
+      await mcpServer.invokeTool('deleteCollection', { name: productsCollection }).catch(() => {});
+      await mcpServer.invokeTool('deleteCollection', { name: categoriesCollection }).catch(() => {});
       
     } catch (cleanupError) {
       console.error('Error during cleanup:', cleanupError);
