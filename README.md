@@ -11,6 +11,8 @@ This project creates a bridge between AI assistants and your Directus instance t
 - Delete content
 - Upload files
 - Search across collections
+- Create and manage collections and fields
+- Validate collection types and structures
 
 The server exposes Directus functionality as callable tools that AI models can use to perform operations on your behalf.
 
@@ -67,6 +69,52 @@ The MCP server exposes the following tools:
 | deleteItem | Delete an item | collection, id |
 | uploadFile | Upload a file to Directus | fileContent, fileName |
 | searchItems | Search for items in a collection | collection, searchQuery |
+| createCollection | Create a new collection | name, fields (optional) |
+| createField | Create a new field in a collection | collection, field, type |
+| createRelation | Create a relation between collections | collection, field, related_collection |
+| createManyToManyRelation | Create a many-to-many relation | collections, fields |
+| testConnection | Test connection to Directus and check permissions | - |
+| diagnoseMCPPermissions | Diagnose permission issues with the MCP server | - |
+| validateCollection | Validate if a collection is a true database table or a pseudo-collection | collection, invasive_test (optional) |
+
+## Collection Validation
+
+The `validateCollection` tool is a powerful addition that helps prevent issues when working with Directus collections. It can determine whether a collection is a true database table (that can accept field definitions) or just a pseudo-collection/folder (that cannot accept fields but appears in the UI).
+
+### Usage
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"collection": "your_collection_name"}' \
+  http://localhost:3000/mcp/v1/tools/validateCollection
+```
+
+Optional parameters:
+- `invasive_test` (boolean): Whether to use potentially destructive tests like creating a test field. Default: false.
+
+### Response
+
+The tool returns detailed validation results:
+
+```json
+{
+  "result": {
+    "collection": "your_collection_name",
+    "tests": {
+      "schema_check": { "status": "passed", "details": "Schema information is available" },
+      "items_retrieval": { "status": "passed", "details": "Items retrieval is supported" },
+      "metadata_analysis": { "status": "passed", "details": "Metadata includes schema information" }
+    },
+    "is_valid_collection": true,
+    "collection_type": "table",
+    "confidence": "high",
+    "message": "\"your_collection_name\" is a valid database table",
+    "validation_score": 3,
+    "validation_max": 3,
+    "validation_ratio": 1.0
+  }
+}
+```
 
 ## Connecting to AI Clients
 
@@ -125,6 +173,9 @@ Once connected, you can ask Claude or any other AI assistant that supports MCP t
 - "Update the user with ID '123' to have the first name 'John'"
 - "Delete the article with ID '456'"
 - "Search for articles containing the keyword 'technology'"
+- "Create a new collection called 'products' in Directus"
+- "Add a 'price' field of type 'decimal' to the 'products' collection"
+- "Check if 'products' is a valid database collection or just a folder"
 
 ## Development
 
@@ -143,6 +194,22 @@ If you encounter 403 Forbidden errors when making requests to Directus:
 1. Check that your admin token is correct and has the necessary permissions
 2. Verify that the token has not expired
 3. Ensure that the collection you're trying to access exists and is accessible
+
+### Pseudo-Collection Issues
+
+If you encounter permission errors when trying to create fields in a collection, it might be a "pseudo-collection" or folder rather than a true database table. Use the `validateCollection` tool to verify:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"collection": "problematic_collection"}' \
+  http://localhost:3000/mcp/v1/tools/validateCollection
+```
+
+If validation confirms it's not a valid database table, you'll need to:
+
+1. Delete the pseudo-collection using a direct API call to Directus
+2. Recreate it properly using the createCollection tool
+3. Verify that field creation now works correctly
 
 ### Connection Issues
 
