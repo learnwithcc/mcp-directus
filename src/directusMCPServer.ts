@@ -14,6 +14,7 @@ import { testConnection } from './tools/testConnection';
 import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
 import { deleteCollection } from './tools/deleteCollection';
+import { validateParams, ValidationRules } from './utils/paramValidation';
 
 interface Tool {
   (params: any): Promise<any>;
@@ -25,6 +26,7 @@ export class DirectusMCPServer {
   private directusUrl: string;
   private directusToken: string;
   private tools: Record<string, Tool>;
+  private toolValidationRules: Record<string, ValidationRules>;
 
   constructor(directusUrl: string, directusToken: string) {
     this.directusUrl = directusUrl;
@@ -57,6 +59,50 @@ export class DirectusMCPServer {
       validateCollection: validateCollection(directusClient),
       deleteCollection: deleteCollection(directusClient)
     };
+    
+    // Initialize validation rules for tools
+    this.toolValidationRules = this.initializeValidationRules();
+  }
+
+  /**
+   * Initialize validation rules for tools based on their parameter definitions
+   */
+  private initializeValidationRules(): Record<string, ValidationRules> {
+    const rules: Record<string, ValidationRules> = {};
+    
+    // Extract rules from tool parameter definitions
+    for (const [toolName, tool] of Object.entries(this.tools)) {
+      if (tool.parameters && tool.parameters.properties) {
+        const toolRules: ValidationRules = {};
+        
+        for (const [paramName, paramDef] of Object.entries(tool.parameters.properties)) {
+          const paramOptions: any = paramDef;
+          
+          toolRules[paramName] = {
+            required: tool.parameters.required?.includes(paramName) || false,
+            type: paramOptions.type as any,
+            allowEmpty: paramOptions.allowEmpty !== false
+          };
+          
+          // Add additional validations if specified
+          if (paramOptions.pattern) {
+            toolRules[paramName].pattern = new RegExp(paramOptions.pattern);
+          }
+          
+          if (paramOptions.minLength !== undefined) {
+            toolRules[paramName].minLength = paramOptions.minLength;
+          }
+          
+          if (paramOptions.maxLength !== undefined) {
+            toolRules[paramName].maxLength = paramOptions.maxLength;
+          }
+        }
+        
+        rules[toolName] = toolRules;
+      }
+    }
+    
+    return rules;
   }
 
   listTools() {
@@ -71,8 +117,19 @@ export class DirectusMCPServer {
   }
 
   async invokeTool(toolName: string, params: any) {
+    // Check if the tool exists
     if (!this.tools[toolName]) {
       throw new Error(`Tool ${toolName} not found`);
+    }
+    
+    // Validate parameters if validation rules exist for this tool
+    if (this.toolValidationRules[toolName]) {
+      const validationResult = validateParams(params, this.toolValidationRules[toolName]);
+      
+      if (!validationResult.valid) {
+        const errorMessage = validationResult.errors.join('; ');
+        throw new Error(`Parameter validation failed: ${errorMessage}`);
+      }
     }
     
     try {

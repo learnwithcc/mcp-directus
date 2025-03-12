@@ -1,4 +1,5 @@
 import { AxiosInstance } from 'axios';
+import { validateCollectionName, validateParams, ValidationRules } from '../utils/paramValidation';
 
 export function createCollection(directusClient: AxiosInstance) {
   /**
@@ -18,9 +19,27 @@ export function createCollection(directusClient: AxiosInstance) {
     meta?: Record<string, any>; 
   }) => {
     try {
-      // Validate that we're not trying to create a system collection
-      if (name.startsWith('directus_')) {
-        throw new Error('Cannot create system collections. Only user collections are allowed.');
+      // Validate parameters
+      const validationRules: ValidationRules = {
+        name: {
+          required: true,
+          type: 'string',
+          allowEmpty: false,
+          customValidator: validateCollectionName
+        },
+        fields: {
+          required: false,
+          type: 'array'
+        },
+        meta: {
+          required: false,
+          type: 'object'
+        }
+      };
+      
+      const validationResult = validateParams({ name, fields, meta }, validationRules);
+      if (!validationResult.valid) {
+        throw new Error(`Invalid parameters: ${validationResult.errors.join('; ')}`);
       }
 
       console.log(`Attempting to create collection "${name}" with ${fields.length} fields`);
@@ -42,6 +61,17 @@ export function createCollection(directusClient: AxiosInstance) {
             }
           }
         ];
+      } else {
+        // Validate each field has required properties
+        for (const field of fields) {
+          if (!field.field || typeof field.field !== 'string') {
+            throw new Error('Each field must have a "field" property of type string');
+          }
+          
+          if (!field.type || typeof field.type !== 'string') {
+            throw new Error(`Field "${field.field}" must have a "type" property of type string`);
+          }
+        }
       }
 
       // Prepare the request body according to Directus 11.5.1 schema
