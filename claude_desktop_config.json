@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "directus-mcp": {
+      "url": "http://localhost:3000/mcp/v1",
+      "description": "Directus CMS Integration",
+      "enabled": true
+    }
+  }
+} 

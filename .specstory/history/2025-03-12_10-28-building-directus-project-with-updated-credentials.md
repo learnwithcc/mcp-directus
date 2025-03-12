@@ -974,6 +974,396 @@ _****_
 
 
 
+Great! The token is working correctly when accessing the Directus API directly. The issue might be with how our MCP server is constructing the API requests. Let's check the implementation of the getItems function:
+
+---
+
+_****_
+
+Read file: undefined
+
+---
+
+_****_
+
+Let's also check how the Directus client is being initialized:
+
+---
+
+_****_
+
+Read file: undefined
+
+---
+
+_****_
+
+Let's also check the index.ts file to see how the server is being initialized:
+
+---
+
+_****_
+
+Read file: undefined
+
+---
+
+_****_
+
+I see the issue. The problem is that our direct curl request to Directus is using the correct endpoint structure (`/users`), but our MCP server is using `/items/directus_users`. Let's modify our curl request to match the endpoint structure used by our MCP server:
+
+---
+
+_****_
+
+```bash
+curl -H "Authorization: Bearer sAkELUjsqTu4J3qg0FyI_7mFnV9BPX8a" http://localhost:8077/items/directus_users?limit=1 | jq
+```
+
+```
+╰─ curl -H "Authorization: Bearer sAkELUjsqTu4J3qg0FyI_7mFnV9BPX8a" http://localhost:8077/items/directus_users\?li
+mitcurl -H "Authorization: Bearer sAkELUjsqTu4J3qg0FyI_7mFnV9BPX8a" http://localhost:8077/items/directus_users\?li
+<tp://localhost:8077/items/directus_users\?limit\=1 | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   102  100   102    0     0   8015      0 --:--:-- --:--:-- --:--:--  8500
+{
+  "errors": [
+    {
+      "message": "You don't have permission to access this.",
+      "extensions": {
+        "code": "FORBIDDEN"
+      }
+    }
+  ]
+}
+
+
+╭─     ~/dev/projects/mcp-directus     main !1 ?4 ······························· ✔     10:33:52   
+╰─
+```
+
+---
+
+_****_
+
+Now we can see the issue more clearly. The token we're using doesn't have permission to access the `directus_users` collection through the `/items/directus_users` endpoint. This is a common security restriction in Directus - the admin token might have access to the `/users` endpoint but not to the raw collection via `/items/directus_users`.
+
+Let's try a different approach. Let's modify our test to use a collection that might be more accessible, or try to use the correct endpoint for users:
+
+---
+
+_****_
+
+```diff
+    const fn = async ({ collection, query = {} }: { collection: string; query?: Record<string, any> }) => {
+      try {
+-       const response = await directusClient.get(`/items/${collection}`, { params: query });
+-       return response.data.data;
++       // Handle special system collections
++       if (collection === 'directus_users') {
++         const response = await directusClient.get('/users', { params: query });
++         return response.data.data;
++       } else if (collection === 'directus_files') {
++         const response = await directusClient.get('/files', { params: query });
++         return response.data.data;
++       } else if (collection === 'directus_roles') {
++         const response = await directusClient.get('/roles', { params: query });
++         return response.data.data;
++       } else {
++         // Standard collection
++         const response = await directusClient.get(`/items/${collection}`, { params: query });
++         return response.data.data;
++       }
+      } catch (error) {
+        console.error('Error getting items:', error);
+```
+
+---
+
+_****_
+
+Now let's also update the getItem.ts file to handle special collections:
+
+---
+
+_****_
+
+Read file: undefined
+
+---
+
+_****_
+
+Let's update the getItem function as well:
+
+---
+
+_****_
+
+```diff
+    const fn = async ({ collection, id }: { collection: string; id: string }) => {
+      try {
+-       const response = await directusClient.get(`/items/${collection}/${id}`);
+-       return response.data.data;
++       // Handle special system collections
++       if (collection === 'directus_users') {
++         const response = await directusClient.get(`/users/${id}`);
++         return response.data.data;
++       } else if (collection === 'directus_files') {
++         const response = await directusClient.get(`/files/${id}`);
++         return response.data.data;
++       } else if (collection === 'directus_roles') {
++         const response = await directusClient.get(`/roles/${id}`);
++         return response.data.data;
++       } else {
++         // Standard collection
++         const response = await directusClient.get(`/items/${collection}/${id}`);
++         return response.data.data;
++       }
+      } catch (error) {
+        console.error('Error getting item:', error);
+```
+
+---
+
+_****_
+
+Now let's rebuild the project and restart the server:
+
+---
+
+_****_
+
+```bash
+pkill -f "node dist/index.js" && npm run build
+```
+
+```
+❯ pkill -f "node dist/index.js" && npm run build
+[1]  + 11963 terminated  NODE_DEBUG=http,net node dist/index.js > server.log 2>&1
+
+> directus-mcp-server@1.0.0 build
+> tsc
+
+
+
+╭─     ~/dev/projects/mcp-directus     main !3 ?4 ···································· ✔  10:34:36   
+╰─
+```
+
+---
+
+_****_
+
+Now let's start the server again:
+
+---
+
+_****_
+
+```bash
+npm start
+```
+
+---
+
+_****_
+
+Now let's test our updated getItems tool with the directus_users collection:
+
+---
+
+_****_
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"collection": "directus_users", "query": {"limit": 3}}' http://localhost:3000/mcp/v1/tools/getItems | jq
+```
+
+```
+
+
+╭─     ~/dev/projects/mcp-directus     main !3 ?4 ···································· ✔  10:34:36   
+<: 3}}' http://localhost:3000/mcp/v1/tools/getItems | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   750  100   695  100    55  10734    849 --:--:-- --:--:-- --:--:-- 11718
+{
+  "result": [
+    {
+      "id": "7a6819b5-900f-48cb-8eb1-724b5a1ba596",
+      "first_name": "Admin",
+      "last_name": "User",
+      "email": "admin@example.com",
+      "password": "**********",
+      "location": null,
+      "title": null,
+      "description": null,
+      "tags": null,
+      "avatar": null,
+      "language": null,
+      "tfa_secret": null,
+      "status": "active",
+      "role": "6342966a-607f-4959-8d42-1654636a46f0",
+      "token": "**********",
+      "last_access": "2025-03-12T13:59:49",
+      "last_page": "/users",
+      "provider": "default",
+      "external_identifier": null,
+      "auth_data": null,
+      "email_notifications": true,
+      "appearance": null,
+      "theme_dark": null,
+      "theme_light": null,
+      "theme_light_overrides": null,
+      "theme_dark_overrides": null,
+      "policies": [
+        "8dbe1c9b-60e0-4362-85f8-71df24b0df22",
+        "cd0a8702-f2c4-4fb0-b00b-4c26f8bdd119"
+      ]
+    }
+  ]
+}
+
+╭─     ~/dev/projects/mcp-directus     main !3 ?5 ···································· ✔  10:34:46   
+╰─
+```
+
+---
+
+_****_
+
+Excellent! Our MCP server is now successfully connecting to the Directus instance and retrieving data. The changes we made to handle special system collections like `directus_users` by using the appropriate endpoints have fixed the issue.
+
+Let's try one more test with a different tool, like getItem, to make sure everything is working correctly:
+
+---
+
+_****_
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"collection": "directus_users", "id": "7a6819b5-900f-48cb-8eb1-724b5a1ba596"}' http://localhost:3000/mcp/v1/tools/getItem | jq
+```
+
+```
+╰─ curl -X POST -H "Content-Type: application/json" -d '{"collection": "directus_users", "id": "7a6819b5-900f-48cb
+-8ecurl -X POST -H "Content-Type: application/json" -d '{"collection": "directus_users", "id": "7a6819b5-900f-48cb
+<a596"}' http://localhost:3000/mcp/v1/tools/getItem | jq
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   771  100   693  100    78  11231   1264 --:--:-- --:--:-- --:--:-- 12639
+{
+  "result": {
+    "id": "7a6819b5-900f-48cb-8eb1-724b5a1ba596",
+    "first_name": "Admin",
+    "last_name": "User",
+    "email": "admin@example.com",
+    "password": "**********",
+    "location": null,
+    "title": null,
+    "description": null,
+    "tags": null,
+    "avatar": null,
+    "language": null,
+    "tfa_secret": null,
+    "status": "active",
+    "role": "6342966a-607f-4959-8d42-1654636a46f0",
+    "token": "**********",
+    "last_access": "2025-03-12T13:59:49",
+    "last_page": "/users",
+    "provider": "default",
+    "external_identifier": null,
+    "auth_data": null,
+    "email_notifications": true,
+    "appearance": null,
+    "theme_dark": null,
+    "theme_light": null,
+    "theme_light_overrides": null,
+    "theme_dark_overrides": null,
+    "policies": [
+      "8dbe1c9b-60e0-4362-85f8-71df24b0df22",
+      "cd0a8702-f2c4-4fb0-b00b-4c26f8bdd119"
+    ]
+  }
+}
+
+╭─     ~/dev/projects/mcp-directus     main !3 ?5 ···································· ✔  10:34:53   
+╰─
+```
+
+---
+
+_****_
+
+Perfect! Both the getItems and getItem tools are now working correctly with the Directus instance. We've successfully:
+
+1. Built the TypeScript project
+2. Identified and fixed an issue with how the MCP server was accessing system collections
+3. Verified that the server can now successfully connect to and retrieve data from the Directus instance
+
+The MCP server is now up and running, connected to your Directus instance at http://localhost:8077 using the admin token provided in the .env file. The server is listening at http://localhost:3000 and can be used by AI clients to interact with your Directus instance.
+
+Here's a summary of what we did:
+
+1. We installed all the required dependencies using `npm install`
+2. We built the TypeScript project using `npm run build`
+3. We identified an issue with how the MCP server was accessing system collections like `directus_users`
+4. We updated the getItems and getItem functions to handle special system collections by using the appropriate endpoints
+5. We rebuilt and restarted the server
+6. We verified that the server is now working correctly by testing the getItems and getItem tools
+
+Is there anything else you'd like to do with the MCP server or any other tools you'd like to test?
+
+---
+
+_**User**_
+
+Please create an example json config for quick setup with Claude Desktop.
+
+Then, create a README.md detailing the project and how to use it. 
+
+---
+
+_**Assistant**_
+
+<think>The user is asking for two things:
+1. An example JSON config file for quick setup with Claude Desktop
+2. A README.md file detailing the project and how to use it
+
+For the Claude Desktop config, I need to create a JSON file that defines the MCP server configuration. Based on the MCP specification documentation provided, this should include the URL of our MCP server and a description.
+
+For the README.md, I'll need to create a comprehensive guide that explains:
+- What the project is (Directus MCP Server)
+- How to set it up
+- How to use it
+- Available tools and functionalities
+- How to connect it to Claude Desktop or other AI clients
+
+Let me start with the Claude Desktop config file and then create the README.md.</think>I'll create both files for you - first an example JSON config for Claude Desktop setup, followed by a comprehensive README.md for the project.
+
+Let's start with the Claude Desktop configuration file:
+
+---
+
+_****_
+
+```diff
+- 
++ {
++   "mcpServers": {
++     "directus-mcp": {
++       "url": "http://localhost:3000/mcp/v1",
++       "description": "Directus CMS Integration",
++       "enabled": true
++     }
++   }
++ } 
+```
+
+---
+
+_****_
+
 
 
 ---
