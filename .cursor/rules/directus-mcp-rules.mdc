@@ -3,7 +3,9 @@ description: Directus MCP server implementation guidance
 globs: 
 alwaysApply: true
 ---
- # Directus MCP Server Implementation Guidelines
+# Directus MCP Server Implementation Guidelines
+
+These guidelines provide comprehensive rules for implementing and working with the Directus MCP (Model Context Protocol) server. They are derived from practical experience and testing with Directus 11.5.1.
 
 ## API INTERACTION PATTERNS
 
@@ -13,6 +15,9 @@ alwaysApply: true
 - Never attempt to modify system collections (those prefixed with `directus_`)
 - Always validate admin token permissions before attempting schema modifications
 - Use the Directus schema API (`/schema/apply`) for bulk operations rather than individual endpoints
+- **Always validate collections before schema operations**: Before attempting to create fields or relationships in a collection, verify that it is a proper database table and not a pseudo-collection or folder
+- **Don't assume HTTP status codes**: A 403 error doesn't always indicate a permission issue; it can also indicate a malformed request or missing required metadata fields
+- **Implement progressive validation**: Use multiple methods to validate entities and operations, providing clear fallback paths when preferred methods fail
 
 ## ERROR HANDLING
 
@@ -21,11 +26,30 @@ alwaysApply: true
 - Provide specific error messages for common issues (403 Forbidden, 404 Not Found, etc.)
 - Include request details in error logs (URL, method, request body) to aid debugging
 - Use typed error responses with proper TypeScript interfaces for Directus error structures
+- Log the request payload alongside any error response for easier debugging
 - Every new tool or enhancement must incorporate:
-    - Comprehensive, structured logging with contextual details for easier troubleshooting, including specifics like request IDs, affected endpoints, and security warnings when applicable.
-    - Centralized permission and parameter validations, ensuring these checks are uniformly implemented across all operations.
-    - Consistent environment and configuration checks (for dev, test, prod) prior to initiating any Directus operations.
+    - Comprehensive, structured logging with contextual details for easier troubleshooting, including specifics like request IDs, affected endpoints, and security warnings when applicable
+    - Centralized permission and parameter validations, ensuring these checks are uniformly implemented across all operations
+    - Consistent environment and configuration checks (for dev, test, prod) prior to initiating any Directus operations
 
+## SCHEMA OPERATION RULES
+
+- **Respect operation order** for complex schema changes:
+    - Collections must exist before fields can be created
+    - Fields must exist before they can be referenced in relationships
+    - Junction collections should be created before attempting to establish M2M relationships
+- **Break complex operations into manageable steps**:
+    - Divide operations like M2M relationship creation into smaller, testable steps
+    - Validate the state after each step before proceeding
+    - Implement rollback capabilities for partial failures
+- **Handle database-specific constraints**:
+    - SQLite foreign key constraints are particularly strict
+    - Database-specific errors may occur when creating relationships
+    - Include database engine detection in schema operations
+- **Provide complete metadata in requests**:
+    - Include all required metadata fields in creation requests
+    - Follow the exact payload structure expected by Directus
+    - Use schema validation to ensure request payloads match expectations
 
 ## TESTING AND DIAGNOSTICS
 
@@ -34,6 +58,18 @@ alwaysApply: true
 - Clean up test resources after diagnostic tests
 - Log detailed information about request formats and responses during testing
 - Verify admin token permissions explicitly before attempting schema operations
+- **Implement progressive testing strategies**:
+    - Start with simple operations and gradually increase complexity
+    - Only proceed to complex tests if simpler tests succeed
+    - Document the dependency relationships between tests
+- **Include thorough cleanup in tests**:
+    - Delete all resources created during tests
+    - Implement cleanup as a finally block to ensure it runs even after failures
+    - Consider documenting or logging leftover resources for manual cleanup
+- **Focus tests on reliable functionality**:
+    - Identify which operations are reliable and focus tests on those
+    - Accept and document limitations for operations that cannot be reliably tested
+    - Consider alternative approaches for functionality that cannot be directly tested
 
 ## CODE ORGANIZATION
 
@@ -42,6 +78,10 @@ alwaysApply: true
 - Standardize error handling across all tools
 - Use TypeScript interfaces to define Directus API request and response structures
 - Separate core functionality from diagnostic/testing tools
+- **Design for maintainability**:
+    - Keep tool implementations focused on single responsibilities
+    - Extract common functionality into shared utilities
+    - Thoroughly document complex workflows and decisions
 
 ## DIRECTUS VERSION SPECIFICS
 
@@ -50,6 +90,29 @@ alwaysApply: true
 - Schema operations require specific permissions that may not be enabled by default
 - The request format for collection and field creation is version-specific
 - Always verify the exact API format for your specific Directus version
+- M2M relationship creation in Directus 11.5.1 has specific requirements:
+    - Fields must exist before they can be referenced
+    - SQLite database constraints must be carefully handled
+    - The order of operations is critical
+
+## DOCUMENTATION RULES
+
+- **Document error patterns and solutions**:
+    - Maintain a list of common errors and their solutions
+    - Include real examples from testing
+    - Update documentation as new issues and solutions are discovered
+- **Create comprehensive API reference**:
+    - Document all tools and their parameters
+    - Include examples of successful API usage
+    - Document version-specific behaviors and requirements
+- **Provide troubleshooting guides**:
+    - Create step-by-step guides for diagnosing common issues
+    - Include decision trees for complex troubleshooting
+    - Document common failure modes and recovery strategies
+- **Maintain a development journal**:
+    - Record significant discoveries and solutions
+    - Date all entries for historical reference
+    - Link journal entries to relevant code changes and issues
 
 ## SECURITY CONSIDERATIONS
 
@@ -58,3 +121,8 @@ alwaysApply: true
 - Implement proper error handling to avoid exposing sensitive information
 - Follow the MCP security principles for user consent and control
 - Provide clear documentation of security implications for all operations
+- **Validate before operating**:
+    - Validate input parameters before making API calls
+    - Verify entity existence before attempting to modify or reference it
+    - Check permissions and capabilities before operations 
+    

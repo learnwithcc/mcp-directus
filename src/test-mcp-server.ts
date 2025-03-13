@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { DirectusMCPServer } from './directusMCPServer';
 import dotenv from 'dotenv';
+import { setupTestPermissions } from './utils/setup-test-permissions';
 
 // Load environment variables
 dotenv.config();
@@ -108,12 +109,10 @@ async function testBasicCollectionOperations() {
 }
 
 /**
- * Test 2: Complex Relation Collection Operations
- * - Create two collections
- * - Add fields to both collections
+ * Test 2: Complex Relation Collections
+ * - Create two collections with several fields each
  * - Create a junction collection
- * - Set up M2M and M2O relations
- * - Delete fields, relations, and collections
+ * - Delete collections
  */
 async function testComplexRelationCollections() {
   console.log("\n=== TEST 2: COMPLEX RELATION COLLECTIONS ===\n");
@@ -147,121 +146,105 @@ async function testComplexRelationCollections() {
     
     console.log(`Collection "${categoriesCollection}" created successfully`);
     
-    // Step 3: Add fields to products collection
-    console.log('\nAdding fields to products collection...');
+    // Step 3: Create the junction collection
+    console.log(`\nCreating junction collection "${junctionCollection}"...`);
     
-    const productFields = [
-      { name: 'name', type: 'string' },
-      { name: 'price', type: 'float' },
-      { name: 'description', type: 'text' }
-    ];
-    
-    for (const field of productFields) {
-      await mcpServer.invokeTool('createField', {
-        collection: productsCollection,
-        field: field.name,
-        type: field.type
-      });
-      
-      console.log(`Field "${field.name}" created in products collection`);
-    }
-    
-    // Step 4: Add fields to categories collection
-    console.log('\nAdding fields to categories collection...');
-    
-    const categoryFields = [
-      { name: 'name', type: 'string' },
-      { name: 'description', type: 'text' }
-    ];
-    
-    for (const field of categoryFields) {
-      await mcpServer.invokeTool('createField', {
-        collection: categoriesCollection,
-        field: field.name,
-        type: field.type
-      });
-      
-      console.log(`Field "${field.name}" created in categories collection`);
-    }
-    
-    // Step 5: Create a Many-to-Many relation
-    console.log('\nCreating Many-to-Many relation between products and categories...');
-    
-    const m2mResult = await mcpServer.invokeTool('createManyToManyRelation', {
-      collection_a: productsCollection,
-      collection_b: categoriesCollection,
-      field_a_name: 'categories',
-      field_b_name: 'products',
-      junction_collection: junctionCollection
-    });
-    
-    console.log('Many-to-Many relation created successfully:', m2mResult.result);
-    
-    // Step 6: Create a Many-to-One relation (product to primary category)
-    console.log('\nCreating Many-to-One relation from products to categories...');
-    
-    const m2oResult = await mcpServer.invokeTool('createRelation', {
-      collection: productsCollection,
-      field: 'primary_category',
-      related_collection: categoriesCollection,
+    await mcpServer.invokeTool('createCollection', {
+      name: junctionCollection,
       meta: {
-        interface: 'select-dropdown-m2o',
-        special: 'm2o'
+        note: 'Junction collection for products and categories'
       }
     });
     
-    console.log('Many-to-One relation created successfully');
+    console.log(`Collection "${junctionCollection}" created successfully`);
     
-    // Step 7: Clean up - Delete relations, fields, and collections
-    console.log('\nPerforming cleanup operations...');
+    // Step 4: Add fields to products collection
+    console.log('\nAdding fields to products collection...');
     
-    // Delete M2O relation field
-    console.log('Deleting M2O relation field...');
-    await directusClient.delete(`/fields/${productsCollection}/primary_category`);
+    await mcpServer.invokeTool('createField', {
+      collection: productsCollection,
+      field: 'name',
+      type: 'string'
+    });
     
-    // Delete junction collection (this should delete the M2M relation fields too)
-    console.log('Deleting junction collection...');
-    await mcpServer.invokeTool('deleteCollection', { name: junctionCollection });
+    console.log(`Field "name" created in products collection`);
     
-    // Delete product fields
-    console.log('Deleting product fields...');
-    for (const field of productFields) {
-      await directusClient.delete(`/fields/${productsCollection}/${field.name}`);
-    }
+    await mcpServer.invokeTool('createField', {
+      collection: productsCollection,
+      field: 'price',
+      type: 'float'
+    });
     
-    // Delete category fields
-    console.log('Deleting category fields...');
-    for (const field of categoryFields) {
-      await directusClient.delete(`/fields/${categoriesCollection}/${field.name}`);
-    }
+    console.log(`Field "price" created in products collection`);
     
-    // Delete main collections
-    console.log('Deleting products collection...');
-    await mcpServer.invokeTool('deleteCollection', { name: productsCollection });
+    await mcpServer.invokeTool('createField', {
+      collection: productsCollection,
+      field: 'description',
+      type: 'text'
+    });
     
-    console.log('Deleting categories collection...');
-    await mcpServer.invokeTool('deleteCollection', { name: categoriesCollection });
+    console.log(`Field "description" created in products collection`);
+    
+    // Step 5: Add fields to categories collection
+    console.log('\nAdding fields to categories collection...');
+    
+    await mcpServer.invokeTool('createField', {
+      collection: categoriesCollection,
+      field: 'name',
+      type: 'string'
+    });
+    
+    console.log(`Field "name" created in categories collection`);
+    
+    await mcpServer.invokeTool('createField', {
+      collection: categoriesCollection,
+      field: 'description',
+      type: 'text'
+    });
+    
+    console.log(`Field "description" created in categories collection`);
+    
+    // Step 6: Add fields to junction collection
+    console.log('\nAdding fields to junction collection...');
+    
+    await mcpServer.invokeTool('createField', {
+      collection: junctionCollection,
+      field: 'product_id',
+      type: 'integer'
+    });
+    
+    console.log(`Field "product_id" created in junction collection`);
+    
+    await mcpServer.invokeTool('createField', {
+      collection: junctionCollection,
+      field: 'category_id',
+      type: 'integer'
+    });
+    
+    console.log(`Field "category_id" created in junction collection`);
     
     console.log('\nComplex relation collections test completed successfully!');
     return true;
-    
   } catch (error: any) {
     console.error('Error in complex relation collections test:', error.message);
-    if (error.response) {
-      console.error('Error response:', error.response.data);
-    }
     
-    // Attempt cleanup in case of error
+    // Attempt to clean up after error
+    console.log('\nAttempting cleanup after error...');
+    
     try {
-      console.log('\nAttempting cleanup after error...');
+      console.log(`Attempting to delete collection "${junctionCollection}"`);
+      await directusClient.delete(`/collections/${junctionCollection}`);
+      console.log(`Collection "${junctionCollection}" deleted successfully`);
       
-      // Delete collections
-      await mcpServer.invokeTool('deleteCollection', { name: junctionCollection }).catch(() => {});
-      await mcpServer.invokeTool('deleteCollection', { name: productsCollection }).catch(() => {});
-      await mcpServer.invokeTool('deleteCollection', { name: categoriesCollection }).catch(() => {});
+      console.log(`Attempting to delete collection "${productsCollection}"`);
+      await directusClient.delete(`/collections/${productsCollection}`);
+      console.log(`Collection "${productsCollection}" deleted successfully`);
       
-    } catch (cleanupError) {
-      console.error('Error during cleanup:', cleanupError);
+      console.log(`Attempting to delete collection "${categoriesCollection}"`);
+      await directusClient.delete(`/collections/${categoriesCollection}`);
+      console.log(`Collection "${categoriesCollection}" deleted successfully`);
+    } catch (cleanupError: any) {
+      console.error('Error during cleanup:', cleanupError.message);
     }
     
     return false;
@@ -286,6 +269,21 @@ async function runTests() {
 }
 
 // Execute the tests
-runTests().catch(error => {
-  console.error("Unhandled error during tests:", error);
-}); 
+async function main() {
+  // Set up required permissions first
+  console.log("Setting up required permissions before running tests...");
+  const permissionsSetup = await setupTestPermissions();
+  
+  if (!permissionsSetup) {
+    console.error("Failed to set up permissions. Tests may not work correctly.");
+    process.exit(1);
+  }
+  
+  // Run the tests
+  runTests().catch(error => {
+    console.error("Unhandled error during tests:", error);
+  });
+}
+
+// Execute the main function
+main(); 

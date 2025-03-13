@@ -997,6 +997,7 @@ I'll structure a documentation approach that covers:
 
 _****_
 
+<<<<<<< HEAD
 ```diff
 - 
 + # MCP Server Implementation Improvements
@@ -1129,11 +1130,15 @@ _****_
 + - Include usage examples
 + - Document error scenarios and troubleshooting guide 
 ```
+=======
+
+>>>>>>> testing
 
 ---
 
 _****_
 
+<<<<<<< HEAD
 Now, let's also update the main README.md to reflect our recent improvements:
 
 ---
@@ -1699,6 +1704,9 @@ Here's a summary of the documentation we've created to document our improvements
 This comprehensive documentation provides a clear overview of what we've accomplished and what's planned for the future. It will help both current and future developers understand the standardization patterns we've implemented and how to maintain consistency in future development.
 
 The next steps would be to continue implementing the tasks outlined in the roadmap, starting with enhancing the diagnostic capabilities as identified in the first section of the roadmap document.
+=======
+
+>>>>>>> testing
 
 ---
 

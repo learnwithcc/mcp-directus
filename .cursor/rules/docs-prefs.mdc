@@ -1,0 +1,10 @@
+---
+description: My preferences regarding the creation and updating of project documentation
+globs: 
+alwaysApply: false
+---
+When creating project documentation, always adhere to the following guiding principles:
+
+- When creating new documentation, be sure to first check the project documentation thoroughly before creating any new files. If a file exists that relates to the subject you're documenting, update the existing document before creating a new file.
+
+- Changelogs should follow the formatting outlined by https://keepachangelog.com/en/1.0.0/

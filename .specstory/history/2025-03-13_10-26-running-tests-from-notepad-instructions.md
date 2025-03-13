@@ -5509,6 +5509,7 @@ Let me create a merged version that combines the best of both files:
 
 _****_
 
+<<<<<<< HEAD
 ```diff
 - 
 + # Directus MCP Server Implementation Guidelines
@@ -5634,11 +5635,15 @@ _****_
 +     - Verify entity existence before attempting to modify or reference it
 +     - Check permissions and capabilities before operations 
 ```
+=======
+
+>>>>>>> testing
 
 ---
 
 _****_
 
+<<<<<<< HEAD
 Now I'll clean up by removing the temporary `.md` file since we've integrated its contents into the `.mdc` file:
 
 ---
@@ -5694,6 +5699,9 @@ Some of the most important additions include:
 I've deleted the temporary `docs/directus-mcp-rules.md` file since its contents have been fully integrated into the main `.mdc` file that Cursor will use as project rules.
 
 The merged file now provides a comprehensive set of guidelines that reflect both our existing knowledge and our new learnings from working with Directus 11.5.1's API, particularly regarding the challenges of creating M2M relationships.
+=======
+
+>>>>>>> testing
 
 ---
 

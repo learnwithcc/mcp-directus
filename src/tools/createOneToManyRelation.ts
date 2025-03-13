@@ -47,6 +47,13 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
       foreign_key_field
     });
 
+    // Track resources created for potential rollback
+    const createdResources = {
+      foreign_key_field: false,
+      relation: false,
+      one_field: false
+    };
+
     try {
       // Validate input parameters
       opLogger.info(`Validating parameters for O2M relationship creation`);
@@ -87,8 +94,10 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
           }
         });
         
+        createdResources.foreign_key_field = true;
         opLogger.info(`Foreign key field "${foreign_key_field}" created successfully`);
       } catch (error: any) {
+        await rollbackResources(createdResources, many_collection, one_collection, foreign_key_field, one_field_name);
         opLogger.error(`Error creating foreign key field in many collection`, error);
         throw new Error(`Failed to create foreign key field: ${error.message}`);
       }
@@ -103,13 +112,15 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
           related_collection: one_collection
         });
         
+        createdResources.relation = true;
         opLogger.info(`Relation created successfully`);
       } catch (error: any) {
-        opLogger.error(`Error creating relation`, error);
+        await rollbackResources(createdResources, many_collection, one_collection, foreign_key_field, one_field_name);
+        opLogger.error(`Error creating relation between collections`, error);
         throw new Error(`Failed to create relation: ${error.message}`);
       }
 
-      // Step 3: Create the virtual O2M field in the "one" collection if requested
+      // Step 3: Create the O2M virtual field in the one collection (if requested)
       if (one_field_name) {
         opLogger.info(`Creating virtual O2M field "${one_field_name}" in ${one_collection}`);
         
@@ -121,26 +132,24 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
               special: ["o2m"],
               interface: "list-o2m",
               options: {
-                template: "{{id}}",
-                enableCreate: true,
-                enableSelect: true
-              },
-              display: "related-values",
-              display_options: {
                 template: "{{id}}"
-              }
+              },
+              display: "related-values"
             },
             schema: null
           });
           
+          createdResources.one_field = true;
           opLogger.info(`Virtual O2M field "${one_field_name}" created successfully`);
         } catch (error: any) {
-          opLogger.error(`Error creating virtual O2M field in one collection`, error);
-          // This is not a critical error, as the M2O relation is already established
-          opLogger.warn(`Continuing despite error in creating virtual field`);
+          // If this fails, we don't roll back everything, as this is a non-critical part
+          opLogger.warn(`Could not create virtual field in ${one_collection}: ${error.message}`);
+          opLogger.warn(`This is not critical, as the relationship is established at the database level`);
         }
       }
 
+      opLogger.info(`Successfully created O2M relationship between ${one_collection} and ${many_collection}`);
+      
       return {
         status: 'success',
         message: `Created one-to-many relationship between ${one_collection} and ${many_collection}`,
@@ -148,8 +157,7 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
           one_collection,
           many_collection,
           foreign_key_field,
-          one_field_name,
-          relation_type: 'o2m'
+          one_field_name
         }
       };
     } catch (error: any) {
@@ -166,6 +174,58 @@ export function createOneToManyRelation(directusClient: AxiosInstance) {
       };
     }
   };
+
+  /**
+   * Roll back created resources in case of failure
+   * @param resources Object tracking which resources were created
+   * @param many_collection Name of the "many" collection
+   * @param one_collection Name of the "one" collection
+   * @param foreign_key_field Name of the foreign key field
+   * @param one_field_name Name of the virtual field in the one collection
+   */
+  async function rollbackResources(
+    resources: {
+      foreign_key_field: boolean;
+      relation: boolean;
+      one_field: boolean;
+    },
+    many_collection: string,
+    one_collection: string,
+    foreign_key_field: string,
+    one_field_name?: string
+  ) {
+    const rollbackLogger = createLogger({ component: 'createOneToManyRelation:rollback' });
+    
+    rollbackLogger.info('Starting rollback of created resources');
+    
+    try {
+      // Delete the virtual field in the "one" collection if created
+      if (resources.one_field && one_field_name) {
+        try {
+          await directusClient.delete(`/fields/${one_collection}/${one_field_name}`);
+          rollbackLogger.info(`Deleted virtual field "${one_field_name}" in one_collection`);
+        } catch (error) {
+          rollbackLogger.error(`Failed to delete virtual field in one_collection during rollback`);
+        }
+      }
+      
+      // Delete the relation (implicitly by deleting the field)
+      
+      // Delete the foreign key field in the "many" collection
+      if (resources.foreign_key_field) {
+        try {
+          await directusClient.delete(`/fields/${many_collection}/${foreign_key_field}`);
+          rollbackLogger.info(`Deleted foreign key field "${foreign_key_field}" in many_collection`);
+        } catch (error) {
+          rollbackLogger.error(`Failed to delete foreign key field in many_collection during rollback`);
+        }
+      }
+      
+      rollbackLogger.info('Rollback completed');
+    } catch (error: any) {
+      rollbackLogger.error(`Error during rollback: ${error.message}`);
+    }
+  }
 
   fn.description = 'Create a one-to-many relationship between two Directus collections';
   fn.parameters = {
