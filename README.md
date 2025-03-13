@@ -16,6 +16,18 @@ This project creates a bridge between AI assistants and your Directus instance t
 
 The server exposes Directus functionality as callable tools that AI models can use to perform operations on your behalf.
 
+## Recent Improvements
+
+The MCP server has been enhanced with several key improvements:
+
+- **Standardized Tool Implementation**: All tools now follow a consistent pattern with proper validation, logging, and response formatting
+- **Transaction-like Rollback**: Complex operations like creating relationships now have rollback capabilities if any step fails
+- **Improved Error Handling**: Detailed error messages with specific guidance based on HTTP status codes
+- **Enhanced Logging**: Comprehensive logging throughout each operation's lifecycle
+- **Special Collection Handling**: Proper handling of Directus system collections (users, files, roles)
+
+See the [Implementation Improvements](./docs/implementation-improvements.md) document for more details.
+
 ## Prerequisites
 
 - Node.js version 18 or higher
@@ -81,6 +93,36 @@ The MCP server exposes the following tools:
 | testConnection | Test connection to Directus and check permissions | - |
 | diagnoseMCPPermissions | Diagnose permission issues with the MCP server | - |
 | validateCollection | Validate if a collection is a true database table or a pseudo-collection | collection, invasive_test (optional) |
+
+## Standardized Response Format
+
+All tools now return responses in a consistent format:
+
+### Success Response
+```json
+{
+  "status": "success",
+  "message": "Human-readable success message",
+  "details": {
+    "collection": "example_collection",
+    "id": "1234",
+    "item": {...}
+  }
+}
+```
+
+### Error Response
+```json
+{
+  "status": "error",
+  "message": "Permission denied. Ensure your token has appropriate read permissions for 'example_collection'.",
+  "details": {
+    "collection": "example_collection",
+    "statusCode": 403,
+    "errorDetails": {...}
+  }
+}
+```
 
 ## Collection Validation
 
