@@ -5068,6 +5068,447 @@ Now let's create a file for the cursor rules based on our learnings:
 
 _****_
 
+```diff
+- 
++ # Directus MCP Server Implementation Guidance
++ 
++ These rules provide guidance for implementing and working with the Directus MCP (Model Context Protocol) server. They are derived from practical experience and testing with Directus 11.5.1.
++ 
++ ## API Interaction Rules
++ 
++ 1. **Always validate collections before schema operations**
++    - Before attempting to create fields or relationships in a collection, verify that it is a proper database table and not a pseudo-collection or folder.
++ 
++ 2. **Include detailed error handling for every API call**
++    - Capture the full response data, not just the status code.
++    - Log the request payload alongside any error response for easier debugging.
++    - Don't assume HTTP status codes always indicate their traditional meaning (e.g., 403 might not be a permission issue).
++ 
++ 3. **Handle version-specific behavior**
++    - Directus APIs can change significantly between versions.
++    - Include version detection in tools and adjust behavior accordingly.
++    - Document version-specific quirks and requirements.
++ 
++ 4. **Use progressive validation and fallbacks**
++    - Implement multiple methods to validate entities and operations.
++    - Provide clear fallback paths when preferred methods fail.
++    - Log which method succeeded for monitoring and improvement.
++ 
++ ## Schema Operation Rules
++ 
++ 1. **Respect operation order for complex schema changes**
++    - Collections must exist before fields can be created.
++    - Fields must exist before they can be referenced in relationships.
++    - Junction collections should be created before attempting to establish M2M relationships.
++ 
++ 2. **Break complex operations into manageable steps**
++    - Divide operations like M2M relationship creation into smaller, testable steps.
++    - Validate the state after each step before proceeding.
++    - Implement rollback capabilities for partial failures.
++ 
++ 3. **Handle database-specific constraints**
++    - SQLite foreign key constraints are particularly strict.
++    - Database-specific errors may occur when creating relationships.
++    - Include database engine detection in schema operations.
++ 
++ 4. **Provide complete metadata in requests**
++    - Include all required metadata fields in creation requests.
++    - Follow the exact payload structure expected by Directus.
++    - Use schema validation to ensure request payloads match expectations.
++ 
++ ## Testing Rules
++ 
++ 1. **Implement progressive testing strategies**
++    - Start with simple operations and gradually increase complexity.
++    - Only proceed to complex tests if simpler tests succeed.
++    - Document the dependency relationships between tests.
++ 
++ 2. **Include thorough cleanup in tests**
++    - Delete all resources created during tests.
++    - Implement cleanup as a finally block to ensure it runs even after failures.
++    - Consider documenting or logging leftover resources for manual cleanup.
++ 
++ 3. **Test against multiple environments**
++    - Test against different Directus versions.
++    - Test against different database engines (SQLite, MySQL, PostgreSQL).
++    - Document environment-specific behaviors and limitations.
++ 
++ 4. **Focus tests on reliable functionality**
++    - Identify which operations are reliable and focus tests on those.
++    - Accept and document limitations for operations that cannot be reliably tested.
++    - Consider alternative approaches for functionality that cannot be directly tested.
++ 
++ ## Documentation Rules
++ 
++ 1. **Document error patterns and solutions**
++    - Maintain a list of common errors and their solutions.
++    - Include real examples from testing.
++    - Update documentation as new issues and solutions are discovered.
++ 
++ 2. **Create comprehensive API reference**
++    - Document all tools and their parameters.
++    - Include examples of successful API usage.
++    - Document version-specific behaviors and requirements.
++ 
++ 3. **Provide troubleshooting guides**
++    - Create step-by-step guides for diagnosing common issues.
++    - Include decision trees for complex troubleshooting.
++    - Document common failure modes and recovery strategies.
++ 
++ 4. **Maintain a development journal**
++    - Record significant discoveries and solutions.
++    - Date all entries for historical reference.
++    - Link journal entries to relevant code changes and issues.
++ 
++ ## Implementation Best Practices
++ 
++ 1. **Use validation before operations**
++    - Validate input parameters before making API calls.
++    - Verify entity existence before attempting to modify or reference it.
++    - Check permissions and capabilities before operations.
++ 
++ 2. **Implement comprehensive logging**
++    - Log operation parameters and results.
++    - Use structured logging for easier analysis.
++    - Include context information in log entries.
++ 
++ 3. **Handle transient failures gracefully**
++    - Implement retries for operations that might be affected by transient issues.
++    - Include backoff strategies for retries.
++    - Distinguish between transient and permanent failures.
++ 
++ 4. **Design for maintainability**
++    - Keep tool implementations focused on single responsibilities.
++    - Extract common functionality into shared utilities.
++    - Thoroughly document complex workflows and decisions.
++ 
++ These rules are intended to provide guidance based on practical experience with Directus 11.5.1. They may need to be adjusted for different versions or specific implementation requirements. 
+```
+
+---
+
+_****_
+
+Now let's create a README file to document the test scripts and their findings:
+
+---
+
+_****_
+
+```diff
+- 
++ # MCP Server Testing Documentation
++ 
++ ## Overview
++ 
++ This document provides information about the MCP (Model Context Protocol) server test script (`test-mcp-server.ts`) and how to use it to validate the functionality of the Directus MCP server implementation.
++ 
++ ## Purpose
++ 
++ The test script is designed to verify that the basic functionality of the MCP server works correctly with Directus 11.5.1. It tests:
++ 
++ 1. **Basic Collection Operations**: Creating, modifying, and deleting collections and fields
++ 2. **Complex Relation Collections**: Creating multiple collections with fields that could be used in relationships
++ 
++ ## Prerequisites
++ 
++ Before running the tests, ensure that:
++ 
++ 1. You have a running Directus 11.5.1 instance
++ 2. You have an admin token with appropriate permissions
++ 3. Environment variables are set up correctly in a `.env` file:
++    - `DIRECTUS_URL`: The URL of your Directus instance (default: http://localhost:8077)
++    - `DIRECTUS_ADMIN_TOKEN`: Your Directus admin token
++ 
++ ## Running the Tests
++ 
++ To run the tests, execute the following command:
++ 
++ ```bash
++ npx ts-node src/test-mcp-server.ts
++ ```
++ 
++ ## Test Descriptions
++ 
++ ### Test 1: Basic Collection Operations
++ 
++ This test performs the following operations:
++ 
++ 1. Creates a collection named `test_basic_collection`
++ 2. Adds fields to the collection:
++    - `title` (string type)
++    - `description` (text type)
++    - `status` (string type)
++    - `date_created` (timestamp type)
++ 3. Deletes all fields from the collection
++ 4. Deletes the collection
++ 
++ This test verifies the core functionality of collection and field management.
++ 
++ ### Test 2: Complex Relation Collections
++ 
++ This test performs the following operations:
++ 
++ 1. Creates three collections:
++    - `test_products`
++    - `test_categories`
++    - `test_products_categories` (junction collection)
++ 2. Adds fields to the products collection:
++    - `name` (string)
++    - `price` (float)
++    - `description` (text)
++ 3. Adds fields to the categories collection:
++    - `name` (string)
++    - `description` (text)
++ 4. Adds fields to the junction collection:
++    - `product_id` (integer)
++    - `category_id` (integer)
++ 5. Cleans up by deleting all collections
++ 
++ This test verifies that collections and fields that would be used in a Many-to-Many relationship can be created, even though it doesn't attempt to establish the actual relationship due to complexities with Directus 11.5.1's API.
++ 
++ ## Test Results and Findings
++ 
++ As of 2025-03-13, our testing has shown:
++ 
++ ### Successful Operations
++ 
++ The following operations work reliably:
++ 
++ 1. **Collection Creation**: Creating new collections works without issues
++ 2. **Field Creation**: Adding fields of various types to collections works reliably
++ 3. **Field Deletion**: Removing fields from collections works correctly
++ 4. **Collection Deletion**: Deleting collections works as expected
++ 
++ ### Challenging Operations
++ 
++ The following operations present challenges:
++ 
++ 1. **M2M Relationship Creation**: Creating Many-to-Many relationships programmatically is complex due to:
++    - Strict metadata requirements in API requests
++    - SQLite foreign key constraints
++    - Order-dependent operations
++    - Undocumented requirements in Directus 11.5.1
++ 
++ 2. **Permission Setup**: Programmatically setting up permissions requires specific fields like `name` that aren't always documented.
++ 
++ ## Troubleshooting
++ 
++ If you encounter issues when running the tests:
++ 
++ 1. **Permission Errors (403)**:
++    - Ensure your admin token is valid and has full permissions
++    - Check that the request payload includes all required metadata fields
++    - Note that 403 errors might not indicate permission issues but could be due to malformed requests
++ 
++ 2. **Field Creation Failures**:
++    - Verify that the collection exists and is a proper database table
++    - Check that the field type is supported by Directus 11.5.1
++    - Ensure field names don't conflict with reserved keywords
++ 
++ 3. **Relationship Creation Failures**:
++    - Verify that all referenced fields exist before creating relationships
++    - Check for database-specific constraints (especially with SQLite)
++    - Consider creating relationships via the Directus Admin UI instead
++ 
++ ## Future Improvements
++ 
++ Planned improvements for the test script include:
++ 
++ 1. **Enhanced Validation**: Adding more robust validation for each step
++ 2. **Database Engine Detection**: Adjusting tests based on the database engine
++ 3. **Versioned Testing**: Supporting different Directus versions
++ 4. **Relationship Testing**: Developing more reliable methods for testing relationship creation
++ 
++ ## Conclusion
++ 
++ The test script provides a reliable way to verify the core functionality of the MCP server with Directus 11.5.1. While creating and managing basic collections and fields works well, more complex operations like establishing M2M relationships require careful handling and may be better performed through the Directus Admin UI for now.
++ 
++ For more detailed information about the challenges and solutions related to working with Directus 11.5.1, refer to the development journal at `docs/mcp-dev-journal.md`. 
+```
+
+---
+
+_****_
+
+## Documentation Summary
+
+I've created comprehensive documentation to capture our findings and learnings from today's session:
+
+1. **Development Journal Update** (`docs/mcp-dev-journal.md`):
+   - Added a new entry dated 2025-03-13 about the M2M relationship challenges in Directus 11.5.1
+   - Documented our investigation process, attempted solutions, key learnings, and practical recommendations
+   - Provided detailed information about implementation changes and future considerations
+
+2. **MCP Server Implementation Guide** (`docs/directus-mcp-rules.md`):
+   - Created a new guide with comprehensive rules and best practices for working with the Directus MCP server
+   - Organized rules into categories: API Interaction, Schema Operations, Testing, Documentation, and Implementation Best Practices
+   - Provided specific guidance derived from our practical experience with Directus 11.5.1
+
+3. **Test Script Documentation** (`docs/test-mcp-server.md`):
+   - Created detailed documentation explaining the purpose and functionality of the test script
+   - Described the tests and what they verify
+   - Provided information about prerequisites, running the tests, and interpreting results
+   - Included troubleshooting tips and plans for future improvements
+
+## Recommended Cursor Rules
+
+Based on our learnings from working with Directus 11.5.1, here are some recommended cursor rules you might want to add to your project:
+
+1. **API Interaction**:
+   - Always validate collections before attempting schema operations
+   - Include comprehensive error handling for every API call
+   - Don't assume HTTP status codes (like 403) always indicate their traditional meaning
+   - Use progressive validation with fallback approaches
+
+2. **Schema Operations**:
+   - Always respect operation order for complex schema changes (collections → fields → relationships)
+   - Break complex operations like M2M relationship creation into smaller, testable steps
+   - Handle database-specific constraints, particularly SQLite foreign key requirements
+   - Provide complete metadata in all request payloads
+
+3. **Testing**:
+   - Implement progressive testing strategies that start simple and increase in complexity
+   - Include thorough cleanup in tests to prevent cross-test contamination
+   - Focus tests on reliable functionality rather than attempting to test everything
+
+4. **Error Handling**:
+   - Capture full response data from Directus API calls, not just status codes
+   - Log both request payloads and error responses for easier debugging
+   - Implement detailed diagnostic capabilities to verify the state of entities
+
+5. **Documentation**:
+   - Document all discovered errors and their solutions
+   - Maintain a development journal with dated entries
+   - Create comprehensive API references with version-specific notes
+
+These rules should help maintain a robust and reliable MCP server implementation for Directus 11.5.1 and provide guidance for future development.
+
+---
+
+_**User**_
+
+Please compare the @directus-mcp-rules.md with our current @directus-mcp-rules.mdc 
+
+We should merge the newly created rules into our established .mdc file in order for them to be seen as actual project rules and to remove any duplicate or conflicting instructions.
+
+---
+
+_**Assistant**_
+
+<think>I need to compare the newly created `docs/directus-mcp-rules.md` with the existing cursor rule file `directus-mcp-rules.mdc`. The goal is to create a merged version that combines the best of both without duplicating content, and ensure it's in the .mdc format so it can be used as project rules.
+
+From the cursor rules context, I can see that the existing `directus-mcp-rules.mdc` contains:
+
+```
+# Directus MCP Server Implementation Guidelines
+
+## API INTERACTION PATTERNS
+
+- When interacting with Directus API endpoints, always use the exact request format specified in the Directus 11.5.1 documentation
+- For collection creation, ensure the request includes properly structured `meta` and `schema` objects
+- For field creation, use the `/fields/{collection}` endpoint with properly formatted `meta` and `schema` objects
+- Never attempt to modify system collections (those prefixed with `directus_`)
+- Always validate admin token permissions before attempting schema modifications
+- Use the Directus schema API (`/schema/apply`) for bulk operations rather than individual endpoints
+
+## ERROR HANDLING
+
+- Implement detailed error handling for all Directus API interactions
+- Always extract and log the full error response from Directus, including status code and error details
+- Provide specific error messages for common issues (403 Forbidden, 404 Not Found, etc.)
+- Include request details in error logs (URL, method, request body) to aid debugging
+- Use typed error responses with proper TypeScript interfaces for Directus error structures
+- Every new tool or enhancement must incorporate:
+    - Comprehensive, structured logging with contextual details for easier troubleshooting, including specifics like request IDs, affected endpoints, and security warnings when applicable.
+    - Centralized permission and parameter validations, ensuring these checks are uniformly implemented across all operations.
+    - Consistent environment and configuration checks (for dev, test, prod) prior to initiating any Directus operations.
+
+
+## TESTING AND DIAGNOSTICS
+
+- Implement diagnostic tools that verify connectivity, authentication, and permissions
+- Test actual operations with temporary test collections rather than just checking endpoints
+- Clean up test resources after diagnostic tests
+- Log detailed information about request formats and responses during testing
+- Verify admin token permissions explicitly before attempting schema operations
+
+## CODE ORGANIZATION
+
+- Keep implementation simple with a single, well-documented approach for each operation
+- Avoid complex fallback logic that makes debugging difficult
+- Standardize error handling across all tools
+- Use TypeScript interfaces to define Directus API request and response structures
+- Separate core functionality from diagnostic/testing tools
+
+## DIRECTUS VERSION SPECIFICS
+
+- Directus 11.5.1 uses a policy-based permission system
+- Admin users are governed by policies that must be properly configured
+- Schema operations require specific permissions that may not be enabled by default
+- The request format for collection and field creation is version-specific
+- Always verify the exact API format for your specific Directus version
+
+## SECURITY CONSIDERATIONS
+
+- Store admin tokens securely and never expose them in client-side code
+- Validate all input before passing to Directus API endpoints
+- Implement proper error handling to avoid exposing sensitive information
+- Follow the MCP security principles for user consent and control
+- Provide clear documentation of security implications for all operations
+```
+
+And the newly created file `docs/directus-mcp-rules.md` contains a comprehensive set of rules organized into sections:
+- API Interaction Rules
+- Schema Operation Rules 
+- Testing Rules
+- Documentation Rules
+- Implementation Best Practices
+
+I need to merge these carefully, preserving the existing content while adding new valuable insights from our recent work.</think>I'll compare the two files and create a merged version that incorporates the new information while maintaining the structure and content of the existing `.mdc` file.
+
+## Comparison of `directus-mcp-rules.md` and `directus-mcp-rules.mdc`
+
+### Structure and Content Overview
+
+#### Existing `.mdc` File Structure:
+- API INTERACTION PATTERNS
+- ERROR HANDLING
+- TESTING AND DIAGNOSTICS
+- CODE ORGANIZATION
+- DIRECTUS VERSION SPECIFICS
+- SECURITY CONSIDERATIONS
+
+#### New `.md` File Structure:
+- API Interaction Rules
+- Schema Operation Rules
+- Testing Rules
+- Documentation Rules
+- Implementation Best Practices
+
+### Key Differences and Overlap
+
+1. **Content Format**: 
+   - The `.mdc` file uses bullet points
+   - The new `.md` file uses numbered lists with sub-bullets
+
+2. **Coverage**: 
+   - The new file includes more detailed information about schema operations 
+   - The new file adds a dedicated "Documentation Rules" section
+   - The new file adds specific rules about collection validation
+   - The existing file has a dedicated "SECURITY CONSIDERATIONS" section not present in the new file
+
+3. **Insights**:
+   - The new file incorporates our recent learnings about M2M relationships and SQLite constraints
+   - The new file emphasizes validation before operations
+   - The existing file has more specific details about policy-based permissions
+
+Let me create a merged version that combines the best of both files:
+
+---
+
+_****_
+
 
 
 ---
