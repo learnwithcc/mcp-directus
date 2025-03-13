@@ -100,10 +100,36 @@ This document outlines the planned enhancements for the Directus MCP server.
   - Implement panel creation/modification
   - Add dashboard visualization tools
 
-- [ ] **Advanced Relation Management**
-  - Add tools for managing complex relationships
-  - Implement database-level constraint management
-  - Add referential integrity validation
+- [x] **Advanced Relation Management**
+  - ✅ Add tools for managing complex relationships with hash validation
+  - ✅ Implement schema/apply endpoint integration for relations
+  - [ ] Add database-level constraint management
+  - [ ] Add referential integrity validation
+
+## 7. Schema Management Enhancements
+
+### Priority: High | Timeline: Next Release
+
+- [x] **Hash-Validated Schema Operations**
+  - ✅ Implement schema snapshot hash generation
+  - ✅ Add schema diff generation
+  - ✅ Create hash-validated schema apply mechanism
+  
+- [ ] **Schema Migration Tools**
+  - [ ] Create schema version tracking
+  - [ ] Implement schema migration scripts
+  - [ ] Add rollback capability for migrations
+  - [ ] Develop schema comparison tool between environments
+
+- [ ] **Schema Synchronization**
+  - [ ] Implement environment-to-environment schema sync
+  - [ ] Add selective schema sync (specific collections/fields)
+  - [ ] Create schema merge conflict resolution
+
+- [ ] **Schema Optimization**
+  - [ ] Add index recommendation tool
+  - [ ] Implement field type optimization suggestions
+  - [ ] Create performance analysis for schema design
 
 ## Implementation Strategy
 
@@ -112,6 +138,7 @@ This document outlines the planned enhancements for the Directus MCP server.
 3. **Prioritize** rollback capabilities for all schema-altering operations
 4. **Schedule** performance optimizations after core functionality is robust
 5. **Extend features** based on user feedback and Directus roadmap
+6. **Continue improving** schema operation robustness with hash validation
 
 ## Progress Tracking
 
