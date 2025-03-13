@@ -21,6 +21,11 @@ alwaysApply: true
 - Provide specific error messages for common issues (403 Forbidden, 404 Not Found, etc.)
 - Include request details in error logs (URL, method, request body) to aid debugging
 - Use typed error responses with proper TypeScript interfaces for Directus error structures
+- Every new tool or enhancement must incorporate:
+    - Comprehensive, structured logging with contextual details for easier troubleshooting, including specifics like request IDs, affected endpoints, and security warnings when applicable.
+    - Centralized permission and parameter validations, ensuring these checks are uniformly implemented across all operations.
+    - Consistent environment and configuration checks (for dev, test, prod) prior to initiating any Directus operations.
+
 
 ## TESTING AND DIAGNOSTICS
 
