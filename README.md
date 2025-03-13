@@ -73,7 +73,11 @@ The MCP server exposes the following tools:
 | createField | Create a new field in a collection | collection, field, type |
 | createRelation | Create a relation between collections | collection, field, related_collection |
 | createManyToManyRelation | Create a many-to-many relation | collections, fields |
+| createOneToManyRelation | Create a one-to-many relation | one_collection, many_collection, foreign_key_field, one_field_name (optional) |
+| createManyToOneRelation | Create a many-to-one relation | many_collection, one_collection, foreign_key_field |
+| createOneToOneRelation | Create a one-to-one relation | collection_a, collection_b, field_name, enforce_uniqueness (optional) |
 | deleteCollection | Delete a collection from Directus | name, force (optional) |
+| deleteField | Delete a field from a collection | collection, field |
 | testConnection | Test connection to Directus and check permissions | - |
 | diagnoseMCPPermissions | Diagnose permission issues with the MCP server | - |
 | validateCollection | Validate if a collection is a true database table or a pseudo-collection | collection, invasive_test (optional) |
@@ -270,4 +274,81 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Acknowledgements
 
-This project builds on the work of the Directus team and the Model Context Protocol (MCP) specification by Anthropic. 
+This project builds on the work of the Directus team and the Model Context Protocol (MCP) specification by Anthropic.
+
+## Recent Updates and Improvements
+
+### New Specialized Relationship Tools
+
+The MCP server now includes dedicated tools for creating specific types of relationships:
+
+#### One-to-Many (O2M) Relationships
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "one_collection": "departments",
+    "many_collection": "employees",
+    "foreign_key_field": "department_id",
+    "one_field_name": "employees"
+  }' \
+  http://localhost:3000/mcp/v1/tools/createOneToManyRelation
+```
+
+#### Many-to-One (M2O) Relationships
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "many_collection": "employees",
+    "one_collection": "departments",
+    "foreign_key_field": "department_id"
+  }' \
+  http://localhost:3000/mcp/v1/tools/createManyToOneRelation
+```
+
+#### One-to-One (O2O) Relationships
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "collection_a": "user",
+    "collection_b": "profile",
+    "field_name": "profile_id",
+    "enforce_uniqueness": true
+  }' \
+  http://localhost:3000/mcp/v1/tools/createOneToOneRelation
+```
+
+#### Many-to-Many (M2M) Relationships
+The M2M relationship tool has been improved with:
+- Better error handling and validation
+- Automatic rollback on failure
+- Improved junction collection management
+- Support for custom field names
+- Proper cleanup of resources on failure
+
+### Enhanced Error Handling and Logging
+
+- Comprehensive error handling with detailed error messages
+- Transaction-like operations with rollback capability
+- Improved logging with context-specific information
+- Better validation of collection and field names
+- Proper resource tracking for rollback operations
+
+### Field Management
+
+New field management capabilities have been added:
+
+#### Field Deletion
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "collection": "your_collection",
+    "field": "field_to_delete"
+  }' \
+  http://localhost:3000/mcp/v1/tools/deleteField
+```
+
+The field deletion tool includes:
+- Safe deletion of fields with proper cleanup
+- Validation of system collection access
+- Detailed error reporting
+- Permission verification 

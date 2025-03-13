@@ -10,10 +10,14 @@ import { createCollection } from './tools/createCollection';
 import { createField } from './tools/createField';
 import { createRelation } from './tools/createRelation';
 import { createManyToManyRelation } from './tools/createManyToManyRelation';
+import { createOneToManyRelation } from './tools/createOneToManyRelation';
+import { createManyToOneRelation } from './tools/createManyToOneRelation';
+import { createOneToOneRelation } from './tools/createOneToOneRelation';
 import { testConnection } from './tools/testConnection';
 import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
 import { deleteCollection } from './tools/deleteCollection';
+import { deleteField } from './tools/deleteField';
 import { validateParams, ValidationRules } from './utils/paramValidation';
 import { 
   PermissionVerificationResult, 
@@ -70,7 +74,11 @@ export class DirectusMCPServer {
       createField: this.addPermissionRequirements(createField(this.directusClient), ['schema']),
       createRelation: this.addPermissionRequirements(createRelation(this.directusClient), ['schema']),
       createManyToManyRelation: this.addPermissionRequirements(createManyToManyRelation(this.directusClient), ['schema']),
+      createOneToManyRelation: this.addPermissionRequirements(createOneToManyRelation(this.directusClient), ['schema']),
+      createManyToOneRelation: this.addPermissionRequirements(createManyToOneRelation(this.directusClient), ['schema']),
+      createOneToOneRelation: this.addPermissionRequirements(createOneToOneRelation(this.directusClient), ['schema']),
       deleteCollection: this.addPermissionRequirements(deleteCollection(this.directusClient), ['schema']),
+      deleteField: this.addPermissionRequirements(deleteField(this.directusClient), ['schema']),
       
       // Diagnostic tools
       testConnection: this.addPermissionRequirements(testConnection(this.directusClient), []),

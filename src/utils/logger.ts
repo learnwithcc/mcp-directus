@@ -140,7 +140,9 @@ export function createLogger(defaultContext: LogContext) {
     debug: (message: string, context?: LogContext) => debug(message, { ...defaultContext, ...context }),
     info: (message: string, context?: LogContext) => info(message, { ...defaultContext, ...context }),
     warn: (message: string, context?: LogContext) => warn(message, { ...defaultContext, ...context }),
-    error: (message: string, error?: any, context?: LogContext) => error(message, error, { ...defaultContext, ...context }),
+    error: (message: string, errorObj?: any, context?: LogContext) => {
+      error(message, errorObj, { ...defaultContext, ...context });
+    },
     logObject: (message: string, obj: any, context?: LogContext) => logObject(message, obj, { ...defaultContext, ...context })
   };
 } 
