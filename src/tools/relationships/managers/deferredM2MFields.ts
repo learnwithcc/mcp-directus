@@ -3,6 +3,20 @@
  * 
  * This module provides utilities for handling M2M fields during item creation,
  * which often fails when trying to set M2M fields directly during initial item creation.
+ * 
+ * PROBLEM CONTEXT:
+ * When creating items with M2M relationships in Directus, attempting to set the M2M fields
+ * during the initial creation often fails because:
+ * 1. The item must exist first before M2M relationships can be established
+ * 2. Junction items need both sides of the relationship to exist
+ * 3. Directus's API often rejects M2M field values during initial item creation
+ * 
+ * SOLUTION APPROACH:
+ * This module implements a two-phase creation process:
+ * 1. First phase: Create the base item without any M2M fields
+ * 2. Second phase: Update the newly created item to establish M2M relationships
+ * 
+ * This approach is more reliable and handles the dependency order correctly.
  */
 
 import { AxiosInstance } from 'axios';
@@ -13,21 +27,25 @@ const logger = createLogger({ component: 'deferredM2MFields' });
 
 /**
  * Interface for deferred M2M field
+ * Represents a M2M relationship to be established in the second phase
  */
 export interface DeferredM2MField {
   /**
-   * Field name in the item
+   * Field name in the item - this is the M2M relationship field
+   * configured in the Directus collection
    */
   field: string;
   
   /**
    * IDs to associate with the item through the M2M relationship
+   * These are the IDs of items from the related collection
    */
   ids: string[] | number[];
 }
 
 /**
  * Interface for parameters for creating an item with M2M relationships
+ * Used to structure the two-phase creation process
  */
 export interface CreateItemWithM2MParams {
   /**
@@ -37,11 +55,13 @@ export interface CreateItemWithM2MParams {
   
   /**
    * Base item data without M2M fields
+   * This is used in the first phase of creation
    */
   item: Record<string, any>;
   
   /**
    * M2M fields to add after item creation
+   * These are applied in the second phase of creation
    */
   m2mFields?: DeferredM2MField[];
 }
@@ -53,6 +73,17 @@ export interface CreateItemWithM2MParams {
  * because the relationship may not be fully established yet. It:
  * 1. Creates the base item without M2M fields
  * 2. Updates the item to add the M2M relationships
+ *
+ * Usage example:
+ * ```typescript
+ * const result = await createItemWithM2MRelationships(directusClient, {
+ *   collection: 'products',
+ *   item: { name: 'New Product', price: 99.99 },
+ *   m2mFields: [
+ *     { field: 'categories', ids: ['category1-id', 'category2-id'] }
+ *   ]
+ * });
+ * ```
  *
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for item creation
@@ -173,9 +204,25 @@ export async function createItemWithM2MRelationships(
 /**
  * Helper function to extract M2M fields from an item
  * 
- * @param item The item data
+ * This helps separate M2M fields from regular fields in an item object.
+ * Useful when you have a mixed object and need to apply the two-phase
+ * creation process.
+ * 
+ * Usage example:
+ * ```typescript
+ * const item = {
+ *   name: 'Product',
+ *   categories: ['cat1', 'cat2'],
+ *   tags: ['tag1', 'tag2']
+ * };
+ * 
+ * const m2mFields = extractM2MFields(item, ['categories', 'tags']);
+ * // This will extract the categories and tags fields for deferred processing
+ * ```
+ * 
+ * @param item The item data with mixed regular and M2M fields
  * @param m2mFieldNames Names of fields that are M2M relationships
- * @returns Array of deferred M2M fields
+ * @returns Array of deferred M2M fields ready for the two-phase process
  */
 export function extractM2MFields(
   item: Record<string, any>,
@@ -197,6 +244,19 @@ export function extractM2MFields(
 
 /**
  * Add M2M relationships to an existing item
+ * 
+ * This function handles just the second phase of the two-phase process,
+ * useful when you already have an item and need to establish M2M relationships.
+ * 
+ * Usage example:
+ * ```typescript
+ * await addM2MRelationshipsToItem(
+ *   directusClient,
+ *   'products',
+ *   'product-id-123',
+ *   [{ field: 'categories', ids: ['cat1', 'cat2'] }]
+ * );
+ * ```
  * 
  * @param directusClient The Axios instance for the Directus API
  * @param collection Collection name

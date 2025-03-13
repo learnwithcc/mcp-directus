@@ -4,6 +4,12 @@
  * This module provides a dedicated management system for junction collections
  * used in many-to-many relationships. It handles creation, validation, and field
  * management for these specialized collections.
+ * 
+ * The Junction Collection Manager is responsible for:
+ * - Creating or validating junction collections for M2M relationships
+ * - Setting up proper foreign key fields with correct references
+ * - Configuring the junction collection with appropriate metadata
+ * - Verifying the junction collection works as expected with test data
  */
 
 import { AxiosInstance } from 'axios';
@@ -35,6 +41,7 @@ export interface JunctionCollectionOptions {
   
   /**
    * Whether to hide the junction collection in the admin UI (defaults to true)
+   * Junction collections are typically hidden as they're implementation details
    */
   hidden?: boolean;
   
@@ -45,26 +52,31 @@ export interface JunctionCollectionOptions {
   
   /**
    * Display template for the junction collection
+   * This determines how junction items are displayed in the Directus interface
    */
   displayTemplate?: string;
   
   /**
    * Sort field for the junction collection (defaults to null)
+   * This determines the default sort order for related items
    */
   sortField?: string | null;
   
   /**
    * Additional options for the junction collection
+   * These are passed directly to the Directus collection creation API
    */
   collectionOptions?: Record<string, any>;
   
   /**
    * Options for fieldA (the foreign key to collectionA)
+   * These are passed to the Directus field creation API
    */
   fieldAOptions?: Record<string, any>;
   
   /**
    * Options for fieldB (the foreign key to collectionB)
+   * These are passed to the Directus field creation API
    */
   fieldBOptions?: Record<string, any>;
 }
@@ -113,11 +125,18 @@ export interface JunctionCollectionResult {
 /**
  * Junction Collection Manager Class
  * 
- * Manages the lifecycle and operations for junction collections in M2M relationships
+ * Manages the lifecycle and operations for junction collections in M2M relationships.
+ * Junction collections are special collections that implement the many-to-many relationship
+ * pattern in Directus by connecting two entity collections with foreign key references.
  */
 export class JunctionCollectionManager {
   private directusClient: AxiosInstance;
   
+  /**
+   * Create a new Junction Collection Manager
+   * 
+   * @param directusClient An authenticated Axios instance for the Directus API
+   */
   constructor(directusClient: AxiosInstance) {
     this.directusClient = directusClient;
   }
@@ -125,13 +144,18 @@ export class JunctionCollectionManager {
   /**
    * Create or validate a junction collection for an M2M relationship
    * 
-   * This method will:
-   * 1. Check if the junction collection exists
-   * 2. Create it if it doesn't exist
-   * 3. Ensure it has the proper foreign key fields
+   * This method performs the following operations in sequence:
+   * 1. Check if the junction collection exists (using GET /collections/{name})
+   * 2. Create the junction collection if it doesn't exist (using POST /collections)
+   * 3. Create or validate the foreign key field to collection A (using POST /fields/{collection})
+   * 4. Create or validate the foreign key field to collection B (using POST /fields/{collection})
+   * 5. Set up the relation definitions for both foreign key fields (using POST /relations)
+   * 
+   * This approach is robust to pre-existing collections and fields, making it safe
+   * to call multiple times without causing errors or duplicate resources.
    * 
    * @param options Configuration options for the junction collection
-   * @returns Result of the operation
+   * @returns Result of the operation with details about created resources
    */
   public async createOrValidate(options: JunctionCollectionOptions): Promise<JunctionCollectionResult> {
     const {
@@ -270,10 +294,10 @@ export class JunctionCollectionManager {
   }
   
   /**
-   * Check if a collection exists
+   * Check if a collection exists in the Directus instance
    * 
    * @param collectionName The name of the collection to check
-   * @returns True if the collection exists
+   * @returns True if the collection exists, false otherwise
    */
   private async collectionExists(collectionName: string): Promise<boolean> {
     try {
@@ -286,10 +310,14 @@ export class JunctionCollectionManager {
   }
   
   /**
-   * Create a junction collection
+   * Create a junction collection in Directus
    * 
-   * @param params Parameters for the junction collection
-   * @returns Result of the operation
+   * This creates a new collection with the appropriate metadata for a junction table,
+   * including display settings and visibility options. Optimized for use as a
+   * junction collection in a many-to-many relationship.
+   * 
+   * @param params Parameters for the junction collection creation
+   * @returns Result indicating success or failure with error details
    */
   private async createJunctionCollection(params: {
     name: string;
@@ -337,11 +365,19 @@ export class JunctionCollectionManager {
   /**
    * Create a foreign key field in the junction collection
    * 
+   * This method:
+   * 1. Checks if the field already exists
+   * 2. Creates the field with the appropriate type and metadata if needed
+   * 3. Sets up the relation to the target collection
+   * 
+   * The created field will have the appropriate Many-to-One special handling
+   * and proper database constraints (ON DELETE CASCADE by default).
+   * 
    * @param junctionCollection The name of the junction collection
    * @param targetCollection The name of the collection this field references
    * @param fieldName The name of the field to create
-   * @param options Additional options for the field
-   * @returns Result of the operation
+   * @param options Additional options for the field creation
+   * @returns Result of the operation with created status
    */
   private async createForeignKeyField(
     junctionCollection: string,
@@ -417,8 +453,16 @@ export class JunctionCollectionManager {
   /**
    * Create a test item in the junction collection to verify it works correctly
    * 
-   * @param params Parameters for the test item
-   * @returns Result of the verification
+   * This method:
+   * 1. Creates a test junction item linking the provided test items
+   * 2. Verifies the creation was successful
+   * 3. Cleans up the test item to avoid leaving test data
+   * 
+   * This is a crucial verification step to ensure the junction collection
+   * and its foreign key constraints are properly configured.
+   * 
+   * @param params Parameters for the verification with test data
+   * @returns Result of the verification with details
    */
   public async verifyJunctionWithTestData(params: {
     junctionCollection: string;

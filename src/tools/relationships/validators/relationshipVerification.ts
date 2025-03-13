@@ -3,6 +3,20 @@
  * 
  * This module provides utilities for verifying relationships after they have been created,
  * ensuring they work properly with test data.
+ * 
+ * PURPOSE:
+ * - Verify that relationships function correctly by testing them with actual data
+ * - Detect configuration issues in relationship definitions that might not appear until runtime
+ * - Ensure that all sides of a relationship work (e.g., both A→B and B→A in bidirectional relationships)
+ * - Provide detailed diagnostics when relationships don't work as expected
+ * 
+ * VERIFICATION APPROACH:
+ * The verification process uses the following approach:
+ * 1. Use sample test data for both sides of the relationship
+ * 2. Establish the relationship between test items
+ * 3. Query from both sides to ensure the relationship is correctly established
+ * 4. Clean up test relationship data to avoid leaving test artifacts
+ * 5. Provide detailed reporting on any issues encountered
  */
 
 import { AxiosInstance } from 'axios';
@@ -14,37 +28,100 @@ const logger = createLogger({ component: 'relationshipVerification' });
 
 /**
  * Interface for relationship verification issues
+ * Issues can be errors (critical problems) or warnings (non-critical issues)
  */
 export interface VerificationIssue {
+  /**
+   * Type of issue - either a critical error or a non-critical warning
+   */
   type: 'error' | 'warning';
+  
+  /**
+   * Human-readable description of the issue
+   */
   message: string;
+  
+  /**
+   * Additional contextual details about the issue
+   * Useful for debugging and troubleshooting
+   */
   details?: any;
 }
 
 /**
  * Interface for relationship verification result
+ * Contains comprehensive information about the verification process
  */
 export interface VerificationResult {
+  /**
+   * Whether the verification was successful overall
+   * (false if any critical errors were encountered)
+   */
   success: boolean;
+  
+  /**
+   * List of issues encountered during verification
+   * May include both errors and warnings
+   */
   issues: VerificationIssue[];
+  
+  /**
+   * Additional details about the verification process
+   * Contains test results and diagnostic information
+   */
   details: any;
 }
 
 /**
  * Interface for test data used in verification
+ * Provides sample entities to use in relationship testing
  */
 export interface RelationshipTestData {
+  /**
+   * Test item from the first collection in the relationship
+   * Should have at least an ID, but may include other fields
+   */
   itemA?: { id: string | number; [key: string]: any };
+  
+  /**
+   * Test item from the second collection in the relationship
+   * Should have at least an ID, but may include other fields
+   */
   itemB?: { id: string | number; [key: string]: any };
+  
+  /**
+   * Optional pre-existing junction items (for M2M relationships)
+   * Can be used to test existing relationships
+   */
   junctionItems?: Array<{ [key: string]: any }>;
 }
 
 /**
  * Verify a relationship by testing it with data
  * 
+ * This function is the main entry point for relationship verification.
+ * It routes to the appropriate verification strategy based on the
+ * relationship type.
+ * 
+ * Example usage:
+ * ```typescript
+ * const result = await verifyRelationshipWithData(directusClient, {
+ *   relationshipType: 'manyToMany',
+ *   collectionA: 'products',
+ *   collectionB: 'categories',
+ *   fieldA: 'categories',
+ *   fieldB: 'products',
+ *   junctionCollection: 'products_categories',
+ *   testData: {
+ *     itemA: { id: 'product-id' },
+ *     itemB: { id: 'category-id' }
+ *   }
+ * });
+ * ```
+ * 
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for the verification
- * @returns Verification result
+ * @returns Verification result with detailed diagnostics
  */
 export async function verifyRelationshipWithData(
   directusClient: AxiosInstance,
@@ -134,9 +211,18 @@ export async function verifyRelationshipWithData(
 /**
  * Verify a Many-to-Many relationship
  * 
+ * This function tests a M2M relationship by:
+ * 1. Creating a junction item to link test items from both collections
+ * 2. Querying collection A and verifying it can see collection B through the M2M field
+ * 3. Querying collection B and verifying it can see collection A through the M2M field
+ * 4. Cleaning up the test junction item
+ * 
+ * The verification tests both sides of the relationship to ensure
+ * bidirectional access works correctly.
+ * 
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for the verification
- * @returns Verification result
+ * @returns Verification result with detailed diagnostics
  */
 async function verifyManyToManyRelationship(
   directusClient: AxiosInstance,
@@ -336,9 +422,14 @@ async function verifyManyToManyRelationship(
 /**
  * Verify a One-to-Many relationship
  * 
+ * This function would test a O2M relationship by:
+ * 1. Setting up a foreign key in the "many" side to point to the "one" side
+ * 2. Querying the "one" side to verify it can access its related "many" items
+ * 3. Querying the "many" side to verify it can access its parent "one" item
+ * 
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for the verification
- * @returns Verification result
+ * @returns Verification result with detailed diagnostics
  */
 async function verifyOneToManyRelationship(
   directusClient: AxiosInstance,
@@ -365,9 +456,14 @@ async function verifyOneToManyRelationship(
 /**
  * Verify a Many-to-One relationship
  * 
+ * This function would test a M2O relationship by:
+ * 1. Setting up a foreign key in the "many" side to point to the "one" side
+ * 2. Querying the "many" side to verify it can access its related "one" item
+ * 3. Querying the "one" side to verify it can be accessed from the "many" side
+ * 
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for the verification
- * @returns Verification result
+ * @returns Verification result with detailed diagnostics
  */
 async function verifyManyToOneRelationship(
   directusClient: AxiosInstance,
@@ -394,9 +490,14 @@ async function verifyManyToOneRelationship(
 /**
  * Verify a One-to-One relationship
  * 
+ * This function would test a O2O relationship by:
+ * 1. Setting up foreign keys in both collections to point to each other
+ * 2. Querying from both sides to verify bidirectional access
+ * 3. Verifying that the unique constraint is enforced
+ * 
  * @param directusClient The Axios instance for the Directus API
  * @param params Parameters for the verification
- * @returns Verification result
+ * @returns Verification result with detailed diagnostics
  */
 async function verifyOneToOneRelationship(
   directusClient: AxiosInstance,
