@@ -43,6 +43,12 @@ export function createManyToOneRelation(directusClient: AxiosInstance) {
       foreign_key_field
     });
 
+    // Track resources created for potential rollback
+    const createdResources = {
+      foreign_key_field: false,
+      relation: false
+    };
+
     try {
       // Validate input parameters
       opLogger.info(`Validating parameters for M2O relationship creation`);
@@ -82,8 +88,10 @@ export function createManyToOneRelation(directusClient: AxiosInstance) {
           }
         });
         
+        createdResources.foreign_key_field = true;
         opLogger.info(`Foreign key field "${foreign_key_field}" created successfully`);
       } catch (error: any) {
+        await rollbackResources(createdResources, many_collection, foreign_key_field);
         opLogger.error(`Error creating foreign key field in many collection`, error);
         throw new Error(`Failed to create foreign key field: ${error.message}`);
       }
@@ -98,11 +106,15 @@ export function createManyToOneRelation(directusClient: AxiosInstance) {
           related_collection: one_collection
         });
         
+        createdResources.relation = true;
         opLogger.info(`Relation created successfully`);
       } catch (error: any) {
-        opLogger.error(`Error creating relation`, error);
+        await rollbackResources(createdResources, many_collection, foreign_key_field);
+        opLogger.error(`Error creating relation between collections`, error);
         throw new Error(`Failed to create relation: ${error.message}`);
       }
+
+      opLogger.info(`Successfully created M2O relationship between ${many_collection} and ${one_collection}`);
 
       return {
         status: 'success',
@@ -110,8 +122,7 @@ export function createManyToOneRelation(directusClient: AxiosInstance) {
         details: {
           many_collection,
           one_collection,
-          foreign_key_field,
-          relation_type: 'm2o'
+          foreign_key_field
         }
       };
     } catch (error: any) {
@@ -127,6 +138,42 @@ export function createManyToOneRelation(directusClient: AxiosInstance) {
       };
     }
   };
+
+  /**
+   * Roll back created resources in case of failure
+   * @param resources Object tracking which resources were created
+   * @param many_collection Name of the "many" collection
+   * @param foreign_key_field Name of the foreign key field
+   */
+  async function rollbackResources(
+    resources: {
+      foreign_key_field: boolean;
+      relation: boolean;
+    },
+    many_collection: string,
+    foreign_key_field: string
+  ) {
+    const rollbackLogger = createLogger({ component: 'createManyToOneRelation:rollback' });
+    
+    rollbackLogger.info('Starting rollback of created resources');
+    
+    try {
+      // Delete the foreign key field in the "many" collection
+      // This will also implicitly delete the relation
+      if (resources.foreign_key_field) {
+        try {
+          await directusClient.delete(`/fields/${many_collection}/${foreign_key_field}`);
+          rollbackLogger.info(`Deleted foreign key field "${foreign_key_field}" in many_collection`);
+        } catch (error) {
+          rollbackLogger.error(`Failed to delete foreign key field in many_collection during rollback`);
+        }
+      }
+      
+      rollbackLogger.info('Rollback completed');
+    } catch (error: any) {
+      rollbackLogger.error(`Error during rollback: ${error.message}`);
+    }
+  }
 
   fn.description = 'Create a many-to-one relationship between two Directus collections';
   fn.parameters = {

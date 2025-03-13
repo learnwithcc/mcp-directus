@@ -1,5 +1,9 @@
 import { AxiosInstance } from 'axios';
 import { validateCollectionName, validateParams, ValidationRules } from '../utils/paramValidation';
+import { createLogger } from '../utils/logger';
+
+// Create a module-specific logger
+const logger = createLogger({ component: 'createCollection' });
 
 export function createCollection(directusClient: AxiosInstance) {
   /**
@@ -18,8 +22,15 @@ export function createCollection(directusClient: AxiosInstance) {
     fields?: Array<Record<string, any>>; 
     meta?: Record<string, any>; 
   }) => {
+    // Create an operation-specific logger to track this specific request
+    const opLogger = createLogger({ 
+      component: 'createCollection', 
+      collection: name
+    });
+
     try {
       // Validate parameters
+      opLogger.info(`Validating parameters for collection creation`);
       const validationRules: ValidationRules = {
         name: {
           required: true,
@@ -42,7 +53,12 @@ export function createCollection(directusClient: AxiosInstance) {
         throw new Error(`Invalid parameters: ${validationResult.errors.join('; ')}`);
       }
 
-      console.log(`Attempting to create collection "${name}" with ${fields.length} fields`);
+      // Validate we're not modifying system collections
+      if (name.startsWith('directus_')) {
+        throw new Error('Cannot create system collections. Only user collections are allowed.');
+      }
+
+      opLogger.info(`Attempting to create collection "${name}" with ${fields.length} fields`);
       
       // Ensure we always have at least an ID field if none provided
       if (fields.length === 0) {
@@ -61,6 +77,7 @@ export function createCollection(directusClient: AxiosInstance) {
             }
           }
         ];
+        opLogger.info('No fields provided, adding default ID field');
       } else {
         // Validate each field has required properties
         for (const field of fields) {
@@ -91,38 +108,48 @@ export function createCollection(directusClient: AxiosInstance) {
         fields: fields
       };
       
-      console.log('Sending collection creation request with data:', JSON.stringify(requestBody, null, 2));
+      opLogger.info('Sending collection creation request');
       
       // Make the API request to create the collection
       const response = await directusClient.post('/collections', requestBody);
-      console.log('Collection created successfully');
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error creating collection:', error.message);
+      opLogger.info('Collection created successfully');
       
-      if (error.response) {
-        const statusCode = error.response.status;
-        const errorData = error.response.data;
-        
-        console.error(`Status: ${statusCode}`);
-        console.error('Response data:', JSON.stringify(errorData, null, 2));
-        
-        // Provide more helpful error messages based on common issues
-        if (statusCode === 403) {
-          throw new Error(`Permission denied. Ensure your token has admin privileges and appropriate policies to create schema.`);
-        } else if (statusCode === 400) {
-          const errorMessage = errorData?.errors?.[0]?.message || 'Invalid request format';
-          throw new Error(`Bad request: ${errorMessage}`);
-        } else if (statusCode === 409) {
-          throw new Error(`Collection "${name}" already exists.`);
-        }
+      return {
+        status: 'success',
+        message: `Collection "${name}" created successfully`,
+        details: response.data.data
+      };
+    } catch (error: any) {
+      opLogger.error(`Error creating collection "${name}"`, error);
+      
+      if (error.response && error.response.data && error.response.data.errors) {
+        // Handle Directus API error response
+        const directusErrors = error.response.data.errors.map((err: any) => err.message).join('; ');
+        return {
+          status: 'error',
+          message: `Failed to create collection: ${directusErrors}`,
+          details: {
+            name,
+            fields,
+            meta,
+            errors: error.response.data.errors
+          }
+        };
       }
       
-      throw error;
+      return {
+        status: 'error',
+        message: error.message || 'Unknown error creating collection',
+        details: {
+          name,
+          fields,
+          meta
+        }
+      };
     }
   };
-  
-  fn.description = 'Create a new user collection in Directus';
+
+  fn.description = 'Create a new collection in Directus';
   fn.parameters = {
     type: 'object',
     required: ['name'],
@@ -133,20 +160,11 @@ export function createCollection(directusClient: AxiosInstance) {
       },
       fields: {
         type: 'array',
-        description: 'Array of field objects to include in the collection',
-        items: {
-          type: 'object',
-          properties: {
-            field: { type: 'string', description: 'Field key/name' },
-            type: { type: 'string', description: 'Field data type' },
-            meta: { type: 'object', description: 'Field metadata' },
-            schema: { type: 'object', description: 'Field schema options' }
-          }
-        }
+        description: 'Optional array of field definitions to include in the collection'
       },
       meta: {
         type: 'object',
-        description: 'Metadata configuration for the collection (display options, etc.)'
+        description: 'Optional metadata for the collection (display options, etc.)'
       }
     }
   };

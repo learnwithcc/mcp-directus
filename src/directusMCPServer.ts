@@ -266,10 +266,26 @@ export class DirectusMCPServer {
     
     try {
       const result = await this.tools[toolName](params);
-      return { result };
+      
+      // Handle standardized response format (status, message, details)
+      if (result && typeof result === 'object' && 'status' in result) {
+        // If the tool returned an error status, propagate it properly
+        if (result.status === 'error') {
+          throw new Error(result.message || `Tool ${toolName} encountered an error`);
+        }
+        
+        // For success responses, just return the full result object
+        return result;
+      }
+      
+      // For tools not yet updated to use the standard format, wrap in a basic structure
+      return { 
+        status: 'success',
+        result 
+      };
     } catch (error) {
       console.error(`Error in ${toolName}:`, error);
       throw error;
     }
   }
-} 
+}

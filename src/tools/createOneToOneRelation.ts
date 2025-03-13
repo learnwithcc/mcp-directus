@@ -47,6 +47,12 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
       field_name
     });
 
+    // Track resources created for potential rollback
+    const createdResources = {
+      field: false,
+      relation: false
+    };
+
     try {
       // Validate input parameters
       opLogger.info(`Validating parameters for O2O relationship creation`);
@@ -88,8 +94,10 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
           }
         });
         
+        createdResources.field = true;
         opLogger.info(`Foreign key field "${field_name}" created successfully`);
       } catch (error: any) {
+        await rollbackResources(createdResources, collection_a, field_name);
         opLogger.error(`Error creating foreign key field in collection_a`, error);
         throw new Error(`Failed to create foreign key field: ${error.message}`);
       }
@@ -104,11 +112,15 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
           related_collection: collection_b
         });
         
+        createdResources.relation = true;
         opLogger.info(`Relation created successfully`);
       } catch (error: any) {
-        opLogger.error(`Error creating relation`, error);
+        await rollbackResources(createdResources, collection_a, field_name);
+        opLogger.error(`Error creating relation between collections`, error);
         throw new Error(`Failed to create relation: ${error.message}`);
       }
+
+      opLogger.info(`Successfully created O2O relationship between ${collection_a} and ${collection_b}`);
 
       return {
         status: 'success',
@@ -117,8 +129,7 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
           collection_a,
           collection_b,
           field_name,
-          enforce_uniqueness,
-          relation_type: 'o2o'
+          enforce_uniqueness
         }
       };
     } catch (error: any) {
@@ -136,6 +147,41 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
     }
   };
 
+  /**
+   * Roll back created resources in case of failure
+   * @param resources Object tracking which resources were created
+   * @param collection_a Name of the collection containing the field
+   * @param field_name Name of the field
+   */
+  async function rollbackResources(
+    resources: {
+      field: boolean;
+      relation: boolean;
+    },
+    collection_a: string,
+    field_name: string
+  ) {
+    const rollbackLogger = createLogger({ component: 'createOneToOneRelation:rollback' });
+    
+    rollbackLogger.info('Starting rollback of created resources');
+    
+    try {
+      // Delete the field in collection_a (this will also implicitly delete the relation)
+      if (resources.field) {
+        try {
+          await directusClient.delete(`/fields/${collection_a}/${field_name}`);
+          rollbackLogger.info(`Deleted field "${field_name}" in collection_a`);
+        } catch (error) {
+          rollbackLogger.error(`Failed to delete field in collection_a during rollback`);
+        }
+      }
+      
+      rollbackLogger.info('Rollback completed');
+    } catch (error: any) {
+      rollbackLogger.error(`Error during rollback: ${error.message}`);
+    }
+  }
+
   fn.description = 'Create a one-to-one relationship between two Directus collections';
   fn.parameters = {
     type: 'object',
@@ -143,11 +189,11 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
     properties: {
       collection_a: {
         type: 'string',
-        description: 'First collection in the relationship'
+        description: 'First collection in the relationship (contains the foreign key)'
       },
       collection_b: {
         type: 'string',
-        description: 'Second collection in the relationship'
+        description: 'Second collection in the relationship (referenced by the foreign key)'
       },
       field_name: {
         type: 'string',
@@ -155,8 +201,7 @@ export function createOneToOneRelation(directusClient: AxiosInstance) {
       },
       enforce_uniqueness: {
         type: 'boolean',
-        description: 'Whether to enforce uniqueness constraint',
-        default: true
+        description: 'Whether to enforce uniqueness constraint (default: true)'
       }
     }
   };

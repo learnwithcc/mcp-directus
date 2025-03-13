@@ -1,4 +1,9 @@
 import { AxiosInstance } from 'axios';
+import { createLogger } from '../utils/logger';
+import { validateParams, validateCollectionName } from '../utils/paramValidation';
+
+// Create a module-specific logger
+const logger = createLogger({ component: 'getItems' });
 
 export function getItems(directusClient: AxiosInstance) {
   /**
@@ -8,25 +13,81 @@ export function getItems(directusClient: AxiosInstance) {
    * @returns Array of items from the specified collection
    */
   const fn = async ({ collection, query = {} }: { collection: string; query?: Record<string, any> }) => {
+    // Create an operation-specific logger to track this specific request
+    const opLogger = createLogger({ 
+      component: 'getItems', 
+      collection
+    });
+
     try {
+      // Validate input parameters
+      opLogger.info(`Validating parameters for retrieving items from "${collection}"`);
+      validateParams({ collection, query }, {
+        collection: { required: true, type: 'string', customValidator: validateCollectionName },
+        query: { type: 'object' }
+      });
+
+      opLogger.info(`Retrieving items from collection "${collection}"`);
+      
       // Handle special system collections
+      let response;
       if (collection === 'directus_users') {
-        const response = await directusClient.get('/users', { params: query });
-        return response.data.data;
+        opLogger.info('Using special endpoint for users collection');
+        response = await directusClient.get('/users', { params: query });
       } else if (collection === 'directus_files') {
-        const response = await directusClient.get('/files', { params: query });
-        return response.data.data;
+        opLogger.info('Using special endpoint for files collection');
+        response = await directusClient.get('/files', { params: query });
       } else if (collection === 'directus_roles') {
-        const response = await directusClient.get('/roles', { params: query });
-        return response.data.data;
+        opLogger.info('Using special endpoint for roles collection');
+        response = await directusClient.get('/roles', { params: query });
       } else {
         // Standard collection
-        const response = await directusClient.get(`/items/${collection}`, { params: query });
-        return response.data.data;
+        response = await directusClient.get(`/items/${collection}`, { params: query });
       }
-    } catch (error) {
-      console.error('Error getting items:', error);
-      throw error;
+      
+      opLogger.info(`Successfully retrieved ${response.data.data.length} items from "${collection}"`);
+      
+      return {
+        status: 'success',
+        message: `Retrieved ${response.data.data.length} items from collection "${collection}"`,
+        details: {
+          collection,
+          items: response.data.data,
+          meta: response.data.meta
+        }
+      };
+    } catch (error: any) {
+      opLogger.error(`Error retrieving items from collection "${collection}"`, error);
+      
+      let errorMessage = error.message;
+      let statusCode;
+      let errorDetails;
+      
+      if (error.response) {
+        statusCode = error.response.status;
+        errorDetails = error.response.data;
+        
+        // Provide more helpful error messages based on common status codes
+        if (statusCode === 403) {
+          errorMessage = `Permission denied. Ensure your token has appropriate read permissions for "${collection}".`;
+        } else if (statusCode === 404) {
+          errorMessage = `Collection "${collection}" not found.`;
+        } else if (error.response.data && error.response.data.errors) {
+          // Extract error message from Directus error response
+          errorMessage = error.response.data.errors.map((err: any) => err.message).join('; ');
+        }
+      }
+      
+      return {
+        status: 'error',
+        message: errorMessage,
+        details: {
+          collection,
+          query,
+          statusCode,
+          errorDetails
+        }
+      };
     }
   };
   
@@ -43,10 +104,12 @@ export function getItems(directusClient: AxiosInstance) {
         type: 'object',
         description: 'Optional query parameters (limit, filter, sort, etc.)',
         properties: {
-          limit: { type: 'number' },
-          offset: { type: 'number' },
-          sort: { type: 'string' },
-          filter: { type: 'object' }
+          limit: { type: 'number', description: 'Maximum number of items to return' },
+          offset: { type: 'number', description: 'Number of items to skip' },
+          sort: { type: 'string', description: 'Field(s) to sort by, e.g. "name,-date_created"' },
+          filter: { type: 'object', description: 'Filter conditions to apply' },
+          fields: { type: 'array', description: 'Specific fields to include in the response' },
+          search: { type: 'string', description: 'Search term to filter items by' }
         }
       }
     }
