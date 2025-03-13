@@ -15,25 +15,38 @@ import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
 import { deleteCollection } from './tools/deleteCollection';
 import { validateParams, ValidationRules } from './utils/paramValidation';
+import { 
+  PermissionVerificationResult, 
+  checkRequiredPermissions,
+  verifyMCPPermissions 
+} from './utils/permissionChecker';
 
 interface Tool {
   (params: any): Promise<any>;
   description?: string;
   parameters?: any;
+  requiresPermissions?: Array<'read' | 'create' | 'update' | 'delete' | 'schema'>;
+}
+
+interface ToolRegistry {
+  [name: string]: Tool;
 }
 
 export class DirectusMCPServer {
   private directusUrl: string;
   private directusToken: string;
-  private tools: Record<string, Tool>;
+  private tools: ToolRegistry;
   private toolValidationRules: Record<string, ValidationRules>;
+  private directusClient: AxiosInstance;
+  private permissionVerification: PermissionVerificationResult | null = null;
+  private permissionVerificationPromise: Promise<PermissionVerificationResult> | null = null;
 
   constructor(directusUrl: string, directusToken: string) {
     this.directusUrl = directusUrl;
     this.directusToken = directusToken;
     
     // Initialize the Directus client
-    const directusClient = axios.create({
+    this.directusClient = axios.create({
       baseURL: this.directusUrl,
       headers: {
         'Authorization': `Bearer ${this.directusToken}`,
@@ -41,27 +54,92 @@ export class DirectusMCPServer {
       }
     });
     
-    // Register tools
+    // Register tools with permission requirements
     this.tools = {
-      getItems: getItems(directusClient),
-      getItem: getItem(directusClient),
-      createItem: createItem(directusClient),
-      updateItem: updateItem(directusClient),
-      deleteItem: deleteItem(directusClient),
-      uploadFile: uploadFile(directusClient),
-      searchItems: searchItems(directusClient),
-      createCollection: createCollection(directusClient),
-      createField: createField(directusClient),
-      createRelation: createRelation(directusClient),
-      createManyToManyRelation: createManyToManyRelation(directusClient),
-      testConnection: testConnection(directusClient),
-      diagnoseMCPPermissions: diagnoseMCPPermissions(directusClient),
-      validateCollection: validateCollection(directusClient),
-      deleteCollection: deleteCollection(directusClient)
+      // Item operations
+      getItems: this.addPermissionRequirements(getItems(this.directusClient), ['read']),
+      getItem: this.addPermissionRequirements(getItem(this.directusClient), ['read']),
+      createItem: this.addPermissionRequirements(createItem(this.directusClient), ['create']),
+      updateItem: this.addPermissionRequirements(updateItem(this.directusClient), ['update']),
+      deleteItem: this.addPermissionRequirements(deleteItem(this.directusClient), ['delete']),
+      uploadFile: this.addPermissionRequirements(uploadFile(this.directusClient), ['create']),
+      searchItems: this.addPermissionRequirements(searchItems(this.directusClient), ['read']),
+      
+      // Schema operations
+      createCollection: this.addPermissionRequirements(createCollection(this.directusClient), ['schema']),
+      createField: this.addPermissionRequirements(createField(this.directusClient), ['schema']),
+      createRelation: this.addPermissionRequirements(createRelation(this.directusClient), ['schema']),
+      createManyToManyRelation: this.addPermissionRequirements(createManyToManyRelation(this.directusClient), ['schema']),
+      deleteCollection: this.addPermissionRequirements(deleteCollection(this.directusClient), ['schema']),
+      
+      // Diagnostic tools
+      testConnection: this.addPermissionRequirements(testConnection(this.directusClient), []),
+      diagnoseMCPPermissions: this.addPermissionRequirements(diagnoseMCPPermissions(this.directusClient), []),
+      validateCollection: this.addPermissionRequirements(validateCollection(this.directusClient), ['read'])
     };
     
     // Initialize validation rules for tools
     this.toolValidationRules = this.initializeValidationRules();
+    
+    // Start permission verification in the background
+    this.startPermissionVerification();
+  }
+
+  /**
+   * Add permission requirements to a tool function
+   */
+  private addPermissionRequirements(
+    toolFn: Tool, 
+    permissions: Array<'read' | 'create' | 'update' | 'delete' | 'schema'>
+  ): Tool {
+    toolFn.requiresPermissions = permissions;
+    return toolFn;
+  }
+
+  /**
+   * Start permission verification in the background
+   */
+  private startPermissionVerification(): void {
+    // Skip for diagnostic tools
+    if (this.directusUrl && this.directusToken) {
+      console.log('Starting permission verification...');
+      this.permissionVerificationPromise = verifyMCPPermissions(this.directusUrl, this.directusToken)
+        .then(result => {
+          this.permissionVerification = result;
+          
+          // Log verification results
+          const statusEmoji = result.overallStatus === 'success' ? '✅' : 
+                              result.overallStatus === 'warning' ? '⚠️' : '❌';
+          
+          console.log(`${statusEmoji} Permission verification complete: ${result.overallStatus.toUpperCase()}`);
+          
+          if (result.directusVersion) {
+            console.log(`Directus version: ${result.directusVersion}`);
+          }
+          
+          if (result.recommendations.length > 0) {
+            console.log('Recommendations:');
+            result.recommendations.forEach(rec => console.log(` - ${rec}`));
+          }
+          
+          return result;
+        })
+        .catch(error => {
+          console.error('Error during permission verification:', error);
+          // Return a default error result
+          const errorResult: PermissionVerificationResult = {
+            overallStatus: 'error',
+            directusVersion: 'unknown',
+            serverInfo: null,
+            userInfo: null,
+            checks: [],
+            recommendations: ['Permission verification failed. Check server connectivity and token validity.'],
+            critical: false
+          };
+          this.permissionVerification = errorResult;
+          return errorResult;
+        });
+    }
   }
 
   /**
@@ -105,6 +183,9 @@ export class DirectusMCPServer {
     return rules;
   }
 
+  /**
+   * Get the tools available in the MCP server
+   */
   listTools() {
     // Format the tools according to MCP specification
     return {
@@ -116,6 +197,31 @@ export class DirectusMCPServer {
     };
   }
 
+  /**
+   * Get permission verification status
+   * @returns The current permission verification result, or null if not completed
+   */
+  getPermissionStatus(): PermissionVerificationResult | null {
+    return this.permissionVerification;
+  }
+
+  /**
+   * Wait for permission verification to complete
+   * @returns Promise resolving to permission verification result
+   */
+  async waitForPermissionVerification(): Promise<PermissionVerificationResult | null> {
+    if (this.permissionVerificationPromise) {
+      return this.permissionVerificationPromise;
+    }
+    return this.permissionVerification;
+  }
+
+  /**
+   * Invoke a tool with parameters
+   * @param toolName Name of the tool to invoke
+   * @param params Parameters to pass to the tool
+   * @returns Result of the tool invocation
+   */
   async invokeTool(toolName: string, params: any) {
     // Check if the tool exists
     if (!this.tools[toolName]) {
@@ -129,6 +235,24 @@ export class DirectusMCPServer {
       if (!validationResult.valid) {
         const errorMessage = validationResult.errors.join('; ');
         throw new Error(`Parameter validation failed: ${errorMessage}`);
+      }
+    }
+    
+    // Check permissions if the tool requires them
+    const tool = this.tools[toolName];
+    if (tool.requiresPermissions && tool.requiresPermissions.length > 0) {
+      for (const permission of tool.requiresPermissions) {
+        try {
+          await checkRequiredPermissions(
+            this.directusClient, 
+            permission, 
+            `tool: ${toolName}`
+          );
+        } catch (error: any) {
+          // Add information about which tool failed
+          error.message = `Permission check failed for ${toolName}: ${error.message}`;
+          throw error;
+        }
       }
     }
     

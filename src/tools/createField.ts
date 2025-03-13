@@ -24,6 +24,20 @@
 
 import { AxiosInstance } from 'axios';
 import { validateCollection } from './validateCollection';
+import { checkRequiredPermissions } from '../utils/permissionChecker';
+import { createLogger } from '../utils/logger';
+import { validateParams, ValidationRules, validateCollectionName } from '../utils/paramValidation';
+
+// Create a module-specific logger
+const logger = createLogger({ component: 'createField' });
+
+// Define collection validation result interface to fix type issues
+interface CollectionValidationResult {
+  is_valid_collection: boolean;
+  collection_type: string;
+  message: string;
+  [key: string]: any;
+}
 
 export function createField(directusClient: AxiosInstance) {
   /**
@@ -48,103 +62,173 @@ export function createField(directusClient: AxiosInstance) {
     meta?: Record<string, any>;
     schema?: Record<string, any>;
   }) => {
+    // Create a context-specific logger for this invocation
+    const opLogger = createLogger({ 
+      component: 'createField',
+      collection,
+      field,
+      type
+    });
+
     try {
-      console.log(`Creating field "${field}" in collection "${collection}" with type "${type}"`);
+      // Validate parameters
+      const validationRules: ValidationRules = {
+        collection: {
+          required: true,
+          type: 'string',
+          allowEmpty: false,
+          customValidator: validateCollectionName
+        },
+        field: {
+          required: true,
+          type: 'string',
+          allowEmpty: false,
+          pattern: /^[a-z0-9_]+$/
+        },
+        type: {
+          required: true,
+          type: 'string',
+          allowEmpty: false
+        },
+        meta: {
+          required: false,
+          type: 'object'
+        },
+        schema: {
+          required: false,
+          type: 'object'
+        }
+      };
       
-      // First, validate that this is a true collection
-      const validateCollectionFn = validateCollection(directusClient);
-      const validationResult = await validateCollectionFn({ collection });
+      const validationResult = validateParams({ collection, field, type, meta, schema }, validationRules);
+      if (!validationResult.valid) {
+        throw new Error(`Invalid parameters: ${validationResult.errors.join('; ')}`);
+      }
+
+      opLogger.info(`Attempting to create field "${field}" of type "${type}" in collection "${collection}"`);
       
-      if (validationResult.error) {
-        console.warn(`Collection validation warning: ${validationResult.error}`);
-        // Continue anyway since this is just a warning
-      } else if (validationResult.result && !validationResult.result.is_valid_collection) {
+      // Check permissions before attempting operation
+      await checkRequiredPermissions(directusClient, 'schema', `field creation in collection ${collection}`);
+      
+      // Verify the collection exists and is a valid database table
+      opLogger.info(`Validating collection "${collection}" before creating field`);
+      const validateResult = await validateCollection(directusClient)({ collection });
+      
+      // Handle different response formats from validateCollection
+      let collectionValidation: CollectionValidationResult;
+      
+      if ('result' in validateResult && validateResult.result) {
+        // Extract the validation result from the response
+        collectionValidation = validateResult.result as CollectionValidationResult;
+      } else if ('error' in validateResult) {
+        // Handle error case
+        throw new Error(`Failed to validate collection "${collection}": ${validateResult.error}`);
+      } else {
+        // Fall back to assuming it's directly the result we need
+        collectionValidation = validateResult as unknown as CollectionValidationResult;
+      }
+      
+      if (!collectionValidation.is_valid_collection || collectionValidation.collection_type !== 'table') {
         throw new Error(
-          `Cannot create field in "${collection}": ${validationResult.result.message}\n` +
-          `This appears to be a pseudo-collection or folder, not a database table. ` +
-          `Try deleting and recreating this collection.`
+          `Cannot create field in "${collection}": ${collectionValidation.message}. ` +
+          `Only valid database tables can have fields added. Collection type is "${collectionValidation.collection_type}".`
         );
       }
-
-      // Validate we're not modifying system collections
-      if (collection.startsWith('directus_')) {
-        throw new Error('Cannot modify fields in system collections. Only user collections are allowed.');
-      }
-
-      console.log(`Creating field "${field}" in collection "${collection}" with type "${type}"`);
       
-      // Populate required fields with sensible defaults if not provided
-      const defaultMeta = {
-        interface: getDefaultInterfaceForType(type),
-        display: getDefaultDisplayForType(type),
+      opLogger.info(`Collection "${collection}" validated successfully`);
+      
+      // Prepare field data with defaults for various field types
+      const defaultInterface = getDefaultInterfaceForType(type);
+      const defaultDisplay = getDefaultDisplayForType(type);
+      
+      // Add defaults to meta and schema if not provided
+      meta = {
+        interface: defaultInterface,
         hidden: false,
+        width: "full",
+        display: defaultDisplay,
         readonly: false,
         ...meta
       };
-
-      // Prepare the schema with defaults
-      const defaultSchema = {
-        name: field,
-        table: collection,
-        data_type: getSQLTypeForFieldType(type),
-        is_nullable: true,
-        ...schema
-      };
       
-      // Prepare the request payload according to Directus 11.5.1 API requirements
-      // Note: We're not including the collection in the payload as it's already in the URL
-      const fieldData = {
-        field,
-        type,
-        meta: defaultMeta,
-        schema: defaultSchema
-      };
-      
-      console.log('Sending field creation request with payload:', JSON.stringify(fieldData, null, 2));
-      
-      // Make the API request to create the field
-      const response = await directusClient.post(`/fields/${collection}`, fieldData);
-      
-      console.log('Field created successfully');
-      return response.data.data;
-    } catch (error: any) {
-      console.error('Error creating field:', error.message);
-      
-      if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-        
-        // Provide more helpful error messages based on common issues
-        if (error.response.status === 403) {
-          const diagnosticMessage = `
-PERMISSION DENIED: Unable to create field "${field}" in collection "${collection}"
-
-DIAGNOSTIC INFORMATION:
-- You are using an admin token, but it may not have sufficient permissions for schema modifications
-- The testConnection tool reports schema permissions as: ${await checkSchemaPermissions(directusClient)}
-- Directus 11.5.1 uses a policy-based permission system that may restrict schema modifications
-
-POSSIBLE SOLUTIONS:
-1. Check your admin role permissions in the Directus admin UI
-2. Create the field manually through the Directus admin UI
-3. Use the Directus CLI or Migration system for schema changes
-4. Check if any plugins or extensions are affecting schema modification permissions
-`;
-          console.error(diagnosticMessage);
-          throw new Error(`Permission denied when creating field "${field}". Ensure your token has admin privileges and appropriate policies to modify schema. You may need to manually create this field via the Directus admin UI.`);
-        } else if (error.response.status === 400) {
-          const errorMessage = error.response.data?.errors?.[0]?.message || 'Invalid request format';
-          throw new Error(`Bad request when creating field "${field}": ${errorMessage}`);
-        } else if (error.response.status === 404) {
-          throw new Error(`Collection "${collection}" not found.`);
-        }
+      // Get SQL type if not provided
+      if (!schema.data_type) {
+        schema.data_type = getSQLTypeForFieldType(type);
       }
       
+      // Prepare the request body according to Directus 11.5.1 schema
+      const requestBody = {
+        field,
+        type,
+        schema,
+        meta
+      };
+      
+      opLogger.debug(`Sending field creation request with data`, { requestBody });
+      
+      // Attempt creation using standard fields endpoint (most reliable method)
+      try {
+        opLogger.info(`Trying method 1: Using fields endpoint`);
+        const response = await directusClient.post(`/fields/${collection}`, requestBody);
+        opLogger.info(`Field created successfully using fields endpoint`);
+        return response.data.data;
+      } catch (error: any) {
+        opLogger.warn(`Method 1 failed: ${error.message}`);
+        
+        // If that fails, try the schema/apply endpoint
+        try {
+          opLogger.info(`Trying method 2: Using schema/apply endpoint`);
+          
+          // Format for schema/apply is different
+          const schemaApplyPayload = {
+            fields: {
+              [collection]: {
+                [field]: {
+                  ...requestBody
+                }
+              }
+            }
+          };
+          
+          const response = await directusClient.post('/schema/apply', schemaApplyPayload);
+          opLogger.info(`Field created successfully using schema/apply endpoint`);
+          
+          // Schema/apply has a different response format - need to fetch the field to return consistent data
+          try {
+            const fieldResponse = await directusClient.get(`/fields/${collection}/${field}`);
+            return fieldResponse.data.data;
+          } catch (fieldFetchError: any) {
+            opLogger.warn(`Field created but couldn't fetch details: ${fieldFetchError.message}`);
+            return { field, type, collection, message: "Field created, but details couldn't be fetched" };
+          }
+        } catch (error2: any) {
+          opLogger.error(`Method 2 failed: ${error2.message}`);
+          
+          // Check permissions to diagnose the issue
+          try {
+            const permissionCheckResult = await checkSchemaPermissions(directusClient);
+            opLogger.warn(`Permission check result: ${permissionCheckResult}`);
+          } catch (permError: any) {
+            opLogger.error(`Permission check failed: ${permError.message}`);
+          }
+          
+          // Both methods failed, throw a comprehensive error
+          throw new Error(
+            `Failed to create field "${field}" in collection "${collection}". ` +
+            `Primary error: ${error.message}. ` +
+            `Secondary error: ${error2.message}. ` +
+            `This likely indicates a permissions issue with the token. ` +
+            `Ensure your token has admin privileges and appropriate policies for schema management.`
+          );
+        }
+      }
+    } catch (error: any) {
+      opLogger.error(`Error creating field: ${error.message}`, error);
       throw error;
     }
   };
   
-  fn.description = 'Create a new field in a Directus collection';
+  fn.description = 'Create a new field in a collection';
   fn.parameters = {
     type: 'object',
     required: ['collection', 'field', 'type'],
@@ -159,7 +243,7 @@ POSSIBLE SOLUTIONS:
       },
       type: {
         type: 'string',
-        description: 'The type of field (e.g., string, integer, boolean, etc.)'
+        description: 'The type of field (e.g., string, boolean, integer, etc.)'
       },
       meta: {
         type: 'object',
@@ -176,32 +260,48 @@ POSSIBLE SOLUTIONS:
 }
 
 /**
- * Helper function to check schema permissions
+ * Check permissions to diagnose schema modification issues
+ * 
+ * @param directusClient Axios client for Directus API
+ * @returns Message about permission status
  */
 async function checkSchemaPermissions(directusClient: AxiosInstance): Promise<string> {
   try {
-    // Get current user info
+    // Try to get user info to check role
     const userResponse = await directusClient.get('/users/me');
-    const user = userResponse.data.data;
+    const userData = userResponse.data.data;
     
-    // Check if user has admin role
-    const isAdmin = user.role?.admin_access === true;
+    if (!userData) {
+      return 'Could not fetch user data. The token may be invalid.';
+    }
     
-    if (isAdmin) {
-      return "User has admin role with admin_access=true";
-    } else {
-      return "User does not have admin role or admin_access=false";
+    const roleName = userData.role?.name || 'Unknown';
+    const isAdmin = userData.role?.admin_access === true;
+    
+    if (!isAdmin) {
+      return `User has role "${roleName}" which is not an admin role. Admin access is required for schema operations.`;
+    }
+    
+    // Try to list collections to check schema access
+    try {
+      await directusClient.get('/collections');
+      return `User has role "${roleName}" with admin access and can view collections. The issue may be with specific permissions for field creation.`;
+    } catch (error) {
+      return `User has role "${roleName}" with admin access but cannot view collections. Check schema access permissions.`;
     }
   } catch (error) {
-    return "Unable to determine schema permissions";
+    return 'Could not check permissions. The token may be invalid or lacks basic access rights.';
   }
 }
 
 /**
- * Helper function to get the default interface for a field type
+ * Get the default interface for a field type
+ * 
+ * @param type Field type
+ * @returns Default interface for the field type
  */
 function getDefaultInterfaceForType(type: string): string {
-  switch (type) {
+  switch (type.toLowerCase()) {
     case 'string':
       return 'input';
     case 'text':
@@ -215,12 +315,14 @@ function getDefaultInterfaceForType(type: string): string {
       return 'boolean';
     case 'date':
       return 'datetime';
-    case 'datetime':
-      return 'datetime';
     case 'time':
+      return 'datetime';
+    case 'datetime':
       return 'datetime';
     case 'json':
       return 'input-code';
+    case 'csv':
+      return 'tags';
     case 'uuid':
       return 'input';
     default:
@@ -229,13 +331,17 @@ function getDefaultInterfaceForType(type: string): string {
 }
 
 /**
- * Helper function to get the default display for a field type
+ * Get the default display for a field type
+ * 
+ * @param type Field type
+ * @returns Default display for the field type
  */
 function getDefaultDisplayForType(type: string): string {
-  switch (type) {
+  switch (type.toLowerCase()) {
     case 'string':
-    case 'text':
       return 'formatted-value';
+    case 'text':
+      return 'formatted-text';
     case 'integer':
     case 'bigInteger':
     case 'float':
@@ -244,11 +350,15 @@ function getDefaultDisplayForType(type: string): string {
     case 'boolean':
       return 'boolean';
     case 'date':
-    case 'datetime':
+      return 'datetime';
     case 'time':
       return 'datetime';
+    case 'datetime':
+      return 'datetime';
     case 'json':
-      return 'formatted-value';
+      return 'raw';
+    case 'csv':
+      return 'labels';
     case 'uuid':
       return 'formatted-value';
     default:
@@ -257,10 +367,13 @@ function getDefaultDisplayForType(type: string): string {
 }
 
 /**
- * Helper function to map Directus field types to SQL types
+ * Get the SQL type for a field type
+ * 
+ * @param type Field type
+ * @returns SQL type for the field type
  */
 function getSQLTypeForFieldType(type: string): string {
-  switch (type) {
+  switch (type.toLowerCase()) {
     case 'string':
       return 'varchar';
     case 'text':
@@ -272,17 +385,19 @@ function getSQLTypeForFieldType(type: string): string {
     case 'float':
       return 'float';
     case 'decimal':
-      return 'numeric';
+      return 'decimal';
     case 'boolean':
       return 'boolean';
     case 'date':
       return 'date';
-    case 'datetime':
-      return 'datetime';
     case 'time':
       return 'time';
+    case 'datetime':
+      return 'datetime';
     case 'json':
       return 'json';
+    case 'csv':
+      return 'varchar';
     case 'uuid':
       return 'uuid';
     default:
