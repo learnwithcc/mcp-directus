@@ -14,14 +14,19 @@
   "description": "MCP server for Directus",
   "dependencies": {
     "axios": "^1.8.2",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "inquirer": "^12.4.3",
+    "ora": "^8.2.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/inquirer": "^9.0.7",
     "@types/node": "^22.13.10",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }
-} 
+}
