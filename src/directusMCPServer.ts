@@ -19,6 +19,9 @@ import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
 import { deleteCollection } from './tools/deleteCollection';
 import { deleteField } from './tools/deleteField';
+import { createAccessPolicy } from './tools/createAccessPolicy';
+import { createRole } from './tools/createRole';
+import { assignPolicyToRole } from './tools/assignPolicyToRole';
 import { validateParams, ValidationRules } from './utils/paramValidation';
 import { 
   PermissionVerificationResult, 
@@ -81,6 +84,11 @@ export class DirectusMCPServer {
       createHashValidatedM2M: this.addPermissionRequirements(createHashValidatedM2M(this.directusClient), ['schema']),
       deleteCollection: this.addPermissionRequirements(deleteCollection(this.directusClient), ['schema']),
       deleteField: this.addPermissionRequirements(deleteField(this.directusClient), ['schema']),
+      
+      // Access and Permissions tools
+      createAccessPolicy: this.addPermissionRequirements(createAccessPolicy(this.directusClient), ['schema']),
+      createRole: this.addPermissionRequirements(createRole(this.directusClient), ['schema']),
+      assignPolicyToRole: this.addPermissionRequirements(assignPolicyToRole(this.directusClient), ['schema']),
       
       // Diagnostic tools
       testConnection: this.addPermissionRequirements(testConnection(this.directusClient), []),
