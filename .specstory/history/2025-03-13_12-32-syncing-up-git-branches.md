@@ -774,6 +774,7 @@ git checkout policy-management && git log -n 1 --date=relative
 
 _****_
 
+<<<<<<< HEAD
 Let's try a simpler approach:
 
 ---
@@ -1648,6 +1649,9 @@ If you want to clean up your repository visualization, you could consider:
 3. If necessary, doing a `git gc` to clean up and optimize your repository
 
 The most important thing is that the commit is properly integrated into all your branches, which it is. There's no need to worry about losing any work from this commit.
+=======
+
+>>>>>>> improvements
 
 ---
 

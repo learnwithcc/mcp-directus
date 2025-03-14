@@ -93,6 +93,7 @@ For complex operations that involve multiple API calls, we've implemented a tran
 - ✅ `createManyToOneRelation.ts`: Create many-to-one relationships with rollback
 - ✅ `createOneToOneRelation.ts`: Create one-to-one relationships with rollback
 - ✅ `createManyToManyRelation.ts`: Create many-to-many relationships with rollback
+- ✅ `createHashValidatedM2M.ts`: Create M2M relationships with hash validation
 
 ## Special Collection Handling
 
@@ -100,6 +101,28 @@ Tools have been enhanced to properly handle system collections:
 - `directus_users`: Proper endpoint routing to `/users`
 - `directus_files`: Proper endpoint routing to `/files`
 - `directus_roles`: Proper endpoint routing to `/roles`
+
+## Schema Operation Improvements
+
+### Hash-Validated Schema Changes
+
+We've implemented a robust approach to schema operations using hash validation:
+
+- **Schema Snapshot Hash**: Generate a cryptographic hash of the current schema
+- **Proper Diff Generation**: Generate schema differences before applying changes
+- **Validated Schema Apply**: Apply changes with hash validation to ensure schema integrity
+- **Retry Logic**: Automatic retry capability if schema changes between diff generation and application
+- **Fallback Mechanism**: Direct API calls as a fallback when schema/apply endpoint is unavailable
+
+### Idempotent Operations
+
+Schema operations are now designed to be idempotent:
+- Can be called multiple times safely
+- Properly handle cases where entities already exist
+- Provide warnings instead of errors for already-existing resources
+- No duplicate entries created on retry
+
+See the [Schema Operations](./schema-operations.md) document for more details.
 
 ## Error Handling Improvements
 

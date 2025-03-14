@@ -25,6 +25,8 @@ The MCP server has been enhanced with several key improvements:
 - **Improved Error Handling**: Detailed error messages with specific guidance based on HTTP status codes
 - **Enhanced Logging**: Comprehensive logging throughout each operation's lifecycle
 - **Special Collection Handling**: Proper handling of Directus system collections (users, files, roles)
+- **Robust Schema Operations**: New hash-validated approach for schema changes with proper retry logic and idempotent operations
+- **Better M2M Relationship Creation**: Enhanced support for complex relationships using the schema/apply endpoint
 
 See the [Implementation Improvements](./docs/implementation-improvements.md) document for more details.
 
@@ -85,6 +87,7 @@ The MCP server exposes the following tools:
 | createField | Create a new field in a collection | collection, field, type |
 | createRelation | Create a relation between collections | collection, field, related_collection |
 | createManyToManyRelation | Create a many-to-many relation | collections, fields |
+| createHashValidatedM2M | Create a many-to-many relation with hash validation | collection_a, collection_b, junction_collection (optional), field_a_name (optional), field_b_name (optional) |
 | createOneToManyRelation | Create a one-to-many relation | one_collection, many_collection, foreign_key_field, one_field_name (optional) |
 | createManyToOneRelation | Create a many-to-one relation | many_collection, one_collection, foreign_key_field |
 | createOneToOneRelation | Create a one-to-one relation | collection_a, collection_b, field_name, enforce_uniqueness (optional) |
@@ -366,6 +369,31 @@ The M2M relationship tool has been improved with:
 - Improved junction collection management
 - Support for custom field names
 - Proper cleanup of resources on failure
+
+#### Hash-Validated M2M Relationships
+A new approach for creating M2M relationships with schema hash validation:
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{
+    "collection_a": "products",
+    "collection_b": "categories",
+    "junction_collection": "products_categories",
+    "field_a_name": "products",
+    "field_b_name": "categories"
+  }' \
+  http://localhost:3000/mcp/v1/tools/createHashValidatedM2M
+```
+
+This tool provides:
+- Schema integrity protection using hash validation
+- Idempotent operations (safe to retry)
+- Proper schema diff generation
+- Comprehensive error handling
+- Detailed logging throughout the process
+- Fallback to direct API calls if needed
+
+See the [Schema Operations](./docs/schema-operations.md) document for more details on the hash validation approach.
 
 ### Enhanced Error Handling and Logging
 

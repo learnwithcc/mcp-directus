@@ -1706,16 +1706,20 @@ npm run build
 
 > directus-mcp-server@1.0.0 build
 > tsc
+<<<<<<< HEAD
 
 
 ╭─     ~/dev/projects/mcp-directus     improvements !1 ?2 ······················· ✔     22:18:37   
 ╰─
+=======
+>>>>>>> improvements
 ```
 
 ---
 
 _****_
 
+<<<<<<< HEAD
 Now let's run the server to test the changes:
 
 ---
@@ -1823,6 +1827,9 @@ Let me explain the change:
 The result is what you wanted - each complete log message block (header + message) is now visually separated from the next one by a blank line, as shown in your first screenshot example.
 
 This creates a cleaner output format with clear visual breaks between logical log entries, making it much easier to scan through the logs, especially when there are many entries in succession.
+=======
+
+>>>>>>> improvements
 
 ---
 

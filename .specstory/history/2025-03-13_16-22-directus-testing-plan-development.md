@@ -6969,6 +6969,7 @@ I belive a detailed plan covering enhancements to be made across the code base t
 
 _**Assistant**_
 
+<<<<<<< HEAD
 <think>The user wants a detailed plan for enhancing the codebase to handle complex relations properly and avoid failures. This is considered the highest priority since the main goal of the application is to enable users to create data models seamlessly without dealing with the underlying complexities.
 
 Based on the test results we just saw and the provided code, there are several issues with creating and managing complex relationships in Directus, particularly Many-to-Many (M2M) relationships. Let me analyze the key issues and then create a comprehensive plan to address them.
@@ -7293,6 +7294,9 @@ This enhancement plan addresses the core issues we've identified with relationsh
 The most critical improvements are the two-phase relationship creation process and the enhanced error handling system, which will prevent most common failures and provide actionable feedback when problems do occur. These should be prioritized in the implementation timeline.
 
 Would you like me to elaborate on any specific aspect of this plan or discuss implementation details for a particular enhancement?
+=======
+
+>>>>>>> improvements
 
 ---
 

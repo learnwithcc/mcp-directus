@@ -13,6 +13,7 @@ import { createManyToManyRelation } from './tools/createManyToManyRelation';
 import { createOneToManyRelation } from './tools/createOneToManyRelation';
 import { createManyToOneRelation } from './tools/createManyToOneRelation';
 import { createOneToOneRelation } from './tools/createOneToOneRelation';
+import { createHashValidatedM2M } from './tools/createHashValidatedM2M';
 import { testConnection } from './tools/testConnection';
 import { diagnoseMCPPermissions } from './tools/diagnoseMCPPermissions';
 import { validateCollection } from './tools/validateCollection';
@@ -77,6 +78,7 @@ export class DirectusMCPServer {
       createOneToManyRelation: this.addPermissionRequirements(createOneToManyRelation(this.directusClient), ['schema']),
       createManyToOneRelation: this.addPermissionRequirements(createManyToOneRelation(this.directusClient), ['schema']),
       createOneToOneRelation: this.addPermissionRequirements(createOneToOneRelation(this.directusClient), ['schema']),
+      createHashValidatedM2M: this.addPermissionRequirements(createHashValidatedM2M(this.directusClient), ['schema']),
       deleteCollection: this.addPermissionRequirements(deleteCollection(this.directusClient), ['schema']),
       deleteField: this.addPermissionRequirements(deleteField(this.directusClient), ['schema']),
       

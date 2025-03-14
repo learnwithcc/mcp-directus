@@ -1,0 +1,69 @@
+
+> directus-mcp-server@1.0.0 start
+> node dist/index.js
+
+[1m==================================================[0m
+[35m[1m          Directus MCP Server - Starting           [0m
+[1m==================================================[0m
+[90m[2025-03-14T02:15:18.664Z][0m [36m[INFO][0m
+Validating environment...
+
+Validating connection to Directus at http://localhost:8077...
+✓ Successfully connected to Directus 11.5.1
+[90m[2025-03-14T02:15:18.683Z][0m [36m[INFO][0m
+Using token with 32 characters
+
+[90m[2025-03-14T02:15:18.683Z][0m [36m[INFO][0m
+Initializing MCP server...
+
+Starting permission verification...
+[90m[2025-03-14T02:15:18.686Z][0m [36m[INFO][0m
+Waiting for permission verification to complete...
+
+⚠️ Permission verification complete: WARNING
+Directus version: 11.5.1
+Recommendations:
+ - Some MCP operations may be restricted with the current permissions. Test individual tools before relying on them.
+ - Consider using a token for a user with administrator role for full functionality
+[90m[2025-03-14T02:15:18.729Z][0m [33m[WARN][0m
+[33mPERMISSION WARNINGS DETECTED[0m
+
+[90m[2025-03-14T02:15:18.729Z][0m [33m[WARN][0m
+Some advanced operations may fail due to permission settings.
+
+[90m[2025-03-14T02:15:18.729Z][0m [33m[WARN][0m
+RECOMMENDATION: Some MCP operations may be restricted with the current permissions. Test individual tools before relying on them.
+
+[90m[2025-03-14T02:15:18.729Z][0m [33m[WARN][0m
+RECOMMENDATION: Consider using a token for a user with administrator role for full functionality
+
+[1m==================================================[0m
+[90m[2025-03-14T02:15:18.730Z][0m [36m[INFO][0m
+Directus MCP server running at [32mhttp://localhost:3001[0m
+
+[90m[2025-03-14T02:15:18.730Z][0m [36m[INFO][0m
+Available MCP tools: [1m20[0m
+
+  [36m0.[0m 🔍 getItems
+  [36m1.[0m 🔍 getItem
+  [36m2.[0m 📝 createItem
+  [36m3.[0m ✏️ updateItem
+  [36m4.[0m 🗑️ deleteItem
+  [36m5.[0m 📤 uploadFile
+  [36m6.[0m 🔎 searchItems
+  [36m7.[0m 📝 createCollection
+  [36m8.[0m 📝 createField
+  [36m9.[0m 📝 createRelation
+  [36m10.[0m 📝 createManyToManyRelation
+  [36m11.[0m 📝 createOneToManyRelation
+  [36m12.[0m 📝 createManyToOneRelation
+  [36m13.[0m 📝 createOneToOneRelation
+  [36m14.[0m 📝 createHashValidatedM2M
+  [36m15.[0m 🗑️ deleteCollection
+  [36m16.[0m 🗑️ deleteField
+  [36m17.[0m 🔧 testConnection
+  [36m18.[0m 🔧 diagnoseMCPPermissions
+  [36m19.[0m 🔧 validateCollection
+[1m==================================================[0m
+[32mMCP server is ready to accept connections[0m
+[1m==================================================[0m
