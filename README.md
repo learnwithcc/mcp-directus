@@ -20,15 +20,80 @@ The server exposes Directus functionality as callable tools that AI models can u
 
 The MCP server has been enhanced with several key improvements:
 
+- **Policy Management Tools**: New comprehensive tooling for managing access policies and roles
 - **Standardized Tool Implementation**: All tools now follow a consistent pattern with proper validation, logging, and response formatting
 - **Transaction-like Rollback**: Complex operations like creating relationships now have rollback capabilities if any step fails
 - **Improved Error Handling**: Detailed error messages with specific guidance based on HTTP status codes
-- **Enhanced Logging**: Comprehensive logging throughout each operation's lifecycle
+- **Enhanced Logging**: Comprehensive logging throughout each operation's lifecycle, with two specialized logging utilities:
+  - **Context-Aware Logger** (`logger.ts`): Advanced logging for tools and components with context tracking, debug mode, and structured formatting
+  - **File-Based Logger** (`logging.ts`): Simple but effective file-based logging for server operations and tests
 - **Special Collection Handling**: Proper handling of Directus system collections (users, files, roles)
 - **Robust Schema Operations**: New hash-validated approach for schema changes with proper retry logic and idempotent operations
 - **Better M2M Relationship Creation**: Enhanced support for complex relationships using the schema/apply endpoint
 
 See the [Implementation Improvements](./docs/implementation-improvements.md) document for more details.
+
+## Logging System
+
+The MCP server implements a dual-logging system to handle different logging needs:
+
+### Context-Aware Logger (`logger.ts`)
+
+The advanced logging utility designed for internal tools and components:
+
+- Context-aware logging with support for requestId, tool, and component tracking
+- Debug mode configuration based on environment
+- Structured log formatting with timestamps
+- Specialized logging functions (debug, info, warn, error)
+- Object logging with proper JSON formatting
+- Logger factory for creating component-specific loggers
+
+Example usage:
+```typescript
+// Basic usage
+import { info, error } from './utils/logger';
+info('Operation completed');
+error('Operation failed', new Error('Details'));
+
+// With context
+import { createLogger } from './utils/logger';
+const logger = createLogger({ component: 'MyTool' });
+logger.info('Starting operation', { requestId: 'req123' });
+```
+
+### File-Based Logger (`logging.ts`)
+
+A simpler logging utility focused on server-level and test output:
+
+- Automatic log directory creation and management
+- Configurable file and console output
+- Basic log levels (info, warn, error, debug)
+- Timestamp-based log formatting
+- Multiple log files support (server.log, server_output.log)
+
+Example usage:
+```typescript
+import { log, logToFile, clearLogFile } from './utils/logging';
+
+// Basic logging
+log('Server started');
+
+// With log level
+log('error', 'Operation failed');
+
+// With options
+log('Processing request', {
+  level: 'info',
+  console: true,
+  file: true,
+  logFile: 'custom.log'
+});
+
+// Direct file logging
+logToFile('Custom message', 'custom.log', 'info');
+```
+
+The dual-logging system ensures that both application-level events and tool-specific operations are properly tracked and logged in the most appropriate format.
 
 ## Prerequisites
 
@@ -91,6 +156,10 @@ The MCP server exposes the following tools:
 | createOneToManyRelation | Create a one-to-many relation | one_collection, many_collection, foreign_key_field, one_field_name (optional) |
 | createManyToOneRelation | Create a many-to-one relation | many_collection, one_collection, foreign_key_field |
 | createOneToOneRelation | Create a one-to-one relation | collection_a, collection_b, field_name, enforce_uniqueness (optional) |
+| createAccessPolicy | Create a new access policy | name, description (optional), app_access, admin_access (optional) |
+| createRole | Create a new role | name, description (optional), icon (optional) |
+| assignPolicyToRole | Assign policies to a role | roleId, policyIds |
+| improvedAssignPolicyToRole | Enhanced policy assignment with multiple approaches | roleId, policyIds, useExperimentalApproaches (optional) |
 | deleteCollection | Delete a collection from Directus | name, force (optional) |
 | deleteField | Delete a field from a collection | collection, field |
 | testConnection | Test connection to Directus and check permissions | - |
@@ -421,4 +490,57 @@ The field deletion tool includes:
 - Safe deletion of fields with proper cleanup
 - Validation of system collection access
 - Detailed error reporting
-- Permission verification 
+- Permission verification
+
+## Policy Management Tools
+
+The MCP server now includes comprehensive tools for managing access policies and roles in Directus. These tools help automate the creation and assignment of policies to roles, with fallback options for manual configuration when needed.
+
+### Available Policy Tools
+
+- **createAccessPolicy**: Create new access policies with customizable permissions
+- **createRole**: Create new roles for user management
+- **assignPolicyToRole**: Basic tool for assigning policies to roles
+- **improvedAssignPolicyToRole**: Enhanced tool that tries multiple approaches for policy assignment
+
+### CLI Tool
+
+A command-line interface tool is provided for interactive policy management:
+
+```bash
+# Run the CLI tool
+npx ts-node src/cli/policy-management.ts
+```
+
+Available commands:
+- `list-policies` - List all existing access policies
+- `list-roles` - List all existing roles
+- `create-policy` - Create a new access policy
+- `create-role` - Create a new role
+- `assign-policies` - Assign policies to a role
+
+For detailed information about the policy management tools, see [README-policy-management.md](./README-policy-management.md).
+
+### Known Issues
+
+When assigning policies to roles programmatically, you may encounter `403 Forbidden` errors even with an admin token. The tools include fallback approaches and provide clear instructions for manual assignment through the Directus admin interface when needed.
+
+## Changelog
+
+This project follows [Semantic Versioning](https://semver.org/). For a complete list of changes, please see the [CHANGELOG.md](./CHANGELOG.md) file.
+
+### Recent Updates
+
+#### Version 1.1.1 (2025-03-15)
+- Added comprehensive dual-logging system with context-aware and file-based loggers
+- Improved documentation and code organization
+
+#### Version 1.1.0 (2025-03-13)
+- Added comprehensive policy management tools
+- Implemented CLI tool for policy and role management
+- Enhanced schema operations with hash validation
+
+#### Version 1.0.0 (2025-03-12)
+- Initial release with basic CRUD operations
+- Collection and field management
+- Relationship creation tools 

@@ -1,4 +1,5 @@
+node_modules/
+dist/
+logs/
 .env
-node_modules
-dist
-server.log
+.DS_Store

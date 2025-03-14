@@ -28,6 +28,7 @@ import {
   checkRequiredPermissions,
   verifyMCPPermissions 
 } from './utils/permissionChecker';
+import { log } from './utils/logging';
 
 interface Tool {
   (params: any): Promise<any>;
@@ -120,7 +121,7 @@ export class DirectusMCPServer {
   private startPermissionVerification(): void {
     // Skip for diagnostic tools
     if (this.directusUrl && this.directusToken) {
-      console.log('Starting permission verification...');
+      log('Starting permission verification...');
       this.permissionVerificationPromise = verifyMCPPermissions(this.directusUrl, this.directusToken)
         .then(result => {
           this.permissionVerification = result;
@@ -129,21 +130,22 @@ export class DirectusMCPServer {
           const statusEmoji = result.overallStatus === 'success' ? '✅' : 
                               result.overallStatus === 'warning' ? '⚠️' : '❌';
           
-          console.log(`${statusEmoji} Permission verification complete: ${result.overallStatus.toUpperCase()}`);
+          log(`${statusEmoji} Permission verification complete: ${result.overallStatus.toUpperCase()}`);
           
           if (result.directusVersion) {
-            console.log(`Directus version: ${result.directusVersion}`);
+            log(`Directus version: ${result.directusVersion}`);
           }
           
           if (result.recommendations.length > 0) {
-            console.log('Recommendations:');
-            result.recommendations.forEach(rec => console.log(` - ${rec}`));
+            log('Recommendations:');
+            result.recommendations.forEach(rec => log(` - ${rec}`));
           }
           
           return result;
         })
         .catch(error => {
-          console.error('Error during permission verification:', error);
+          log('Error during permission verification:');
+          log(error instanceof Error ? error.message : String(error));
           // Return a default error result
           const errorResult: PermissionVerificationResult = {
             overallStatus: 'error',
@@ -294,7 +296,8 @@ export class DirectusMCPServer {
         result 
       };
     } catch (error) {
-      console.error(`Error in ${toolName}:`, error);
+      log(`Error in ${toolName}:`);
+      log(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

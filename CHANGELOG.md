@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-03-14
+
 ### Added
+- Comprehensive dual-logging system:
+  - Context-aware logger (`logger.ts`) for tools and components
+  - File-based logger (`logging.ts`) for server operations and tests
+- Improved documentation for both logging utilities
+- Clear examples of logging usage in README.md
+
+### Changed
+- Enhanced documentation with detailed logging system explanation
+- Improved code organization with clearer separation of logging responsibilities
+
+## [1.1.0] - 2025-03-13
+
+### Added
+- Comprehensive policy management tools
+- CLI tool for policy and role management
+- Improved policy assignment with multiple fallback approaches
+- Enhanced error handling and logging for policy operations
+- Detailed documentation for policy management tools
+- Test scripts for policy management functionality
 - New `createHashValidatedM2M` tool for creating many-to-many relationships with schema hash validation
 - Schema operations utility module (`schemaApplyWithHash.ts`) for robust schema changes
 - Comprehensive documentation on schema operations in `docs/schema-operations.md`
@@ -25,14 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Addressed issues with complex relations in schema apply endpoint
 - Improved handling of concurrent schema modifications with hash validation
 
-## [0.1.0] - 2025-03-13
+## [1.0.0] - 2025-03-12
 
 ### Added
-- Initial release of Directus MCP Server
-- Basic CRUD operations for collections and items
-- Relationship creation tools (O2M, M2O, O2O, M2M)
-- Collection validation and testing
-- File upload capabilities
-- Search functionality across collections
-- Error handling and logging
+- Initial release
+- Basic CRUD operations
+- Collection and field management
+- Relationship creation tools
+- File upload support
+- Search functionality
+- Collection validation
+- Special collection handling
 - Transaction-like rollback for complex operations 

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { DirectusMCPServer } from './directusMCPServer';
 import { AxiosError } from 'axios';
 import axios from 'axios';
+import { log } from './utils/logging';
 
 // Load environment variables
 dotenv.config();
@@ -35,7 +36,7 @@ async function validateEnvironment() {
   }
 
   // Try to connect to Directus to validate URL and token
-  console.log(`Validating connection to Directus at ${directusUrl}...`);
+  log('info', 'Validating connection to Directus at ' + directusUrl + '...');
   try {
     const response = await axios.get(`${directusUrl}/server/info`, {
       headers: {
@@ -43,7 +44,7 @@ async function validateEnvironment() {
       }
     });
     
-    console.log(`✓ Successfully connected to Directus ${response.data.data.version}`);
+    log('info', '✓ Successfully connected to Directus ' + response.data.data.version);
     return true;
   } catch (error) {
     if (error instanceof AxiosError) {
@@ -81,36 +82,6 @@ interface ErrorDetails {
   [key: string]: any; // Allow additional properties
 }
 
-/**
- * Format a server log message with timestamp and color
- * @param level Log level (info, warn, error)
- * @param message Message to log
- */
-function serverLog(level: 'info' | 'warn' | 'error', message: string) {
-  const timestamp = new Date().toISOString();
-  const prefix = level === 'info' ? 'INFO' : level === 'warn' ? 'WARN' : 'ERROR';
-  
-  // Colors for terminal output
-  const colors = {
-    reset: '\x1b[0m',
-    bright: '\x1b[1m',
-    dim: '\x1b[2m',
-    info: '\x1b[36m',     // Cyan
-    warn: '\x1b[33m',     // Yellow
-    error: '\x1b[31m',    // Red
-    timestamp: '\x1b[90m' // Grey
-  };
-
-  // Format the header line (timestamp and level)
-  const header = `${colors.timestamp}[${timestamp}]${colors.reset} ${colors[level]}[${prefix}]${colors.reset}`;
-  
-  // Print header and message on separate lines with proper spacing between message blocks
-  console[level](`\n${header}\n${message}`);
-  
-  // Add a true blank line after each log message block for visual separation
-  console[level]('\n');
-}
-
 // Start the application
 async function startApp() {
   try {
@@ -129,59 +100,59 @@ async function startApp() {
     // Clear screen for better readability
     console.clear();
     const divider = '==================================================';
-    console.log(`${colors.bright}${divider}${colors.reset}`);
-    console.log(`${colors.magenta}${colors.bright}          Directus MCP Server - Starting           ${colors.reset}`);
-    console.log(`${colors.bright}${divider}${colors.reset}`);
+    log('info', `${colors.bright}${divider}${colors.reset}`);
+    log('info', `${colors.magenta}${colors.bright}          Directus MCP Server - Starting           ${colors.reset}`);
+    log('info', `${colors.bright}${divider}${colors.reset}`);
     
     // Validate the environment
-    serverLog('info', 'Validating environment...');
+    log('info', 'Validating environment...');
     const valid = await validateEnvironment();
     if (!valid) {
-      serverLog('error', 'Environment validation failed. Exiting...');
+      log('error', 'Environment validation failed. Exiting...');
       process.exit(1);
     }
 
-    serverLog('info', `Using token with ${directusToken.length} characters`);
+    log('info', `Using token with ${directusToken.length} characters`);
 
     // Initialize the MCP server
-    serverLog('info', 'Initializing MCP server...');
+    log('info', 'Initializing MCP server...');
     const mcpServer = new DirectusMCPServer(directusUrl, directusToken);
 
     // Wait for permission verification to complete
-    serverLog('info', 'Waiting for permission verification to complete...');
+    log('info', 'Waiting for permission verification to complete...');
     const permissionStatus = await mcpServer.waitForPermissionVerification();
     
     if (permissionStatus) {
       if (permissionStatus.overallStatus === 'error') {
         if (permissionStatus.critical) {
-          serverLog('error', `${colors.red}${colors.bright}CRITICAL PERMISSION ISSUES DETECTED${colors.reset}`);
-          serverLog('error', 'The MCP server will start, but most operations will fail.');
+          log('error', `${colors.red}${colors.bright}CRITICAL PERMISSION ISSUES DETECTED${colors.reset}`);
+          log('error', 'The MCP server will start, but most operations will fail.');
           // Display unique recommendations
           const uniqueRecs = Array.from(new Set(permissionStatus.recommendations));
-          uniqueRecs.forEach(rec => serverLog('error', `RECOMMENDATION: ${rec}`));
+          uniqueRecs.forEach(rec => log('error', `RECOMMENDATION: ${rec}`));
         } else {
-          serverLog('error', `${colors.red}PERMISSION ISSUES DETECTED${colors.reset}`);
-          serverLog('error', 'Some operations may fail due to insufficient permissions.');
+          log('error', `${colors.red}PERMISSION ISSUES DETECTED${colors.reset}`);
+          log('error', 'Some operations may fail due to insufficient permissions.');
           // Display unique recommendations
           const uniqueRecs = Array.from(new Set(permissionStatus.recommendations));
-          uniqueRecs.forEach(rec => serverLog('error', `RECOMMENDATION: ${rec}`));
+          uniqueRecs.forEach(rec => log('error', `RECOMMENDATION: ${rec}`));
         }
       } else if (permissionStatus.overallStatus === 'warning') {
-        serverLog('warn', `${colors.yellow}PERMISSION WARNINGS DETECTED${colors.reset}`);
-        serverLog('warn', 'Some advanced operations may fail due to permission settings.');
+        log('warn', `${colors.yellow}PERMISSION WARNINGS DETECTED${colors.reset}`);
+        log('warn', 'Some advanced operations may fail due to permission settings.');
         // Display unique recommendations
         const uniqueRecs = Array.from(new Set(permissionStatus.recommendations));
-        uniqueRecs.forEach(rec => serverLog('warn', `RECOMMENDATION: ${rec}`));
+        uniqueRecs.forEach(rec => log('warn', `RECOMMENDATION: ${rec}`));
       } else {
-        serverLog('info', `${colors.green}All permission checks passed successfully.${colors.reset}`);
+        log('info', `${colors.green}All permission checks passed successfully.${colors.reset}`);
       }
     } else {
-      serverLog('warn', `${colors.yellow}Permission verification could not be completed. Some operations may fail.${colors.reset}`);
+      log('warn', `${colors.yellow}Permission verification could not be completed. Some operations may fail.${colors.reset}`);
     }
 
     // MCP list endpoint
     app.get('/mcp/v1/tools', (req, res) => {
-      serverLog('info', 'Requested tool listing');
+      log('info', 'Requested tool listing');
       res.json(mcpServer.listTools());
     });
 
@@ -214,14 +185,14 @@ async function startApp() {
       const params = req.body;
       const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      serverLog('info', `[${requestId}] Invoking tool ${tool} with params: ${JSON.stringify(params, null, 2)}`);
+      log('info', `[${requestId}] Invoking tool ${tool} with params: ${JSON.stringify(params, null, 2)}`);
       
       try {
         const result = await mcpServer.invokeTool(tool, params);
-        serverLog('info', `[${requestId}] Tool ${tool} executed successfully`);
+        log('info', `[${requestId}] Tool ${tool} executed successfully`);
         res.json(result);
       } catch (error) {
-        serverLog('error', `[${requestId}] Error invoking tool ${tool}: ${error}`);
+        log('error', `[${requestId}] Error invoking tool ${tool}: ${error instanceof Error ? error.message : String(error)}`);
         
         let errorMessage = 'Failed to invoke tool';
         let errorDetails: ErrorDetails = {};
@@ -233,8 +204,8 @@ async function startApp() {
           // outside the range of 2xx
           statusCode = error.response.status;
           
-          serverLog('error', `[${requestId}] Response error data: ${JSON.stringify(error.response.data, null, 2)}`);
-          serverLog('error', `[${requestId}] Response error status: ${error.response.status}`);
+          log('error', `[${requestId}] Response error data: ${JSON.stringify(error.response.data, null, 2)}`);
+          log('error', `[${requestId}] Response error status: ${error.response.status}`);
           
           // Extract Directus API error details
           const directusErrors = error.response.data?.errors || [];
@@ -269,7 +240,7 @@ async function startApp() {
               errorDetails.suggestion = 'Consider checking role permissions in Directus admin UI.';
             }
             
-            serverLog('error', `[${requestId}] PERMISSION ERROR: Ensure your admin token has the correct permissions and policies.`);
+            log('error', `[${requestId}] PERMISSION ERROR: Ensure your admin token has the correct permissions and policies.`);
           } else if (statusCode === 404) {
             const notFoundPath = error.response.config?.url || '';
             const resourceMatch = notFoundPath.match(/\/([^\/]+)(?:\/([^\/]+))?$/);
@@ -301,7 +272,7 @@ async function startApp() {
           }
         } else if (error instanceof AxiosError && error.request) {
           // The request was made but no response was received
-          serverLog('error', `[${requestId}] No response received for request`);
+          log('error', `[${requestId}] No response received for request`);
           errorMessage = 'No response from Directus server. The server may be down or unreachable.';
           errorDetails = {
             url: directusUrl,
@@ -310,7 +281,7 @@ async function startApp() {
           };
         } else if (error instanceof Error) {
           // Something happened in setting up the request or processing the response
-          serverLog('error', `[${requestId}] Error message: ${error.message}`);
+          log('error', `[${requestId}] Error message: ${error.message}`);
           errorMessage = error.message;
           
           // Add validation hints for common parameter errors
@@ -324,7 +295,7 @@ async function startApp() {
         }
         
         // Log detailed diagnostic information to help with debugging
-        serverLog('error', `[${requestId}] MCP Tool Error [${tool}]: ${errorMessage}`);
+        log('error', `[${requestId}] MCP Tool Error [${tool}]: ${errorMessage}`);
         
         // Send detailed error response with troubleshooting guidance
         res.status(statusCode).json({ 
@@ -350,35 +321,25 @@ async function startApp() {
         red: '\x1b[31m'
       };
       
-      console.log(`${colors.bright}${divider}${colors.reset}`);
-      serverLog('info', `Directus MCP server running at ${colors.green}http://localhost:${port}${colors.reset}`);
+      log(`${colors.bright}${divider}${colors.reset}`);
+      log('info', `Directus MCP server running at ${colors.green}http://localhost:${port}${colors.reset}`);
       
       // Get tools and properly order them
       const tools = mcpServer.listTools().tools;
-      serverLog('info', `Available MCP tools: ${colors.bright}${tools.length}${colors.reset}`);
+      log('info', `Available MCP tools: ${colors.bright}${tools.length}${colors.reset}`);
       
       // Display tools in numerical order with their names
       tools.forEach((tool, index) => {
-        // Select emoji based on tool name
-        const emoji = tool.name.startsWith('create') ? '📝' : 
-                     tool.name.startsWith('get') ? '🔍' : 
-                     tool.name.startsWith('update') ? '✏️' : 
-                     tool.name.startsWith('delete') ? '🗑️' : 
-                     tool.name.startsWith('search') ? '🔎' : 
-                     tool.name.startsWith('upload') ? '📤' : 
-                     tool.name.startsWith('test') || tool.name.startsWith('diagnose') || tool.name.startsWith('validate') ? '🔧' : 
-                     '🔌';
-                     
-        // Format: index. emoji toolName
-        console.log(`  ${colors.cyan}${index}.${colors.reset} ${emoji} ${tool.name}`);
+        const emoji = tool.name.toLowerCase().includes('delete') ? '🗑️' : '🔧';
+        log('info', `  ${colors.cyan}${index}.${colors.reset} ${emoji} ${tool.name}`);
       });
       
-      console.log(`${colors.bright}${divider}${colors.reset}`);
-      console.log(`${colors.green}MCP server is ready to accept connections${colors.reset}`);
-      console.log(`${colors.bright}${divider}${colors.reset}`);
+      log(`${colors.bright}${divider}${colors.reset}`);
+      log(`${colors.green}MCP server is ready to accept connections${colors.reset}`);
+      log(`${colors.bright}${divider}${colors.reset}`);
     });
   } catch (error) {
-    serverLog('error', `Unhandled error during startup: ${error}`);
+    log('error', `Unhandled error during startup: ${error}`);
     process.exit(1);
   }
 }

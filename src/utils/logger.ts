@@ -1,8 +1,32 @@
 /**
- * Centralized logging utility for the MCP server
+ * Advanced Contextual Logger for MCP Server Components
  * 
- * This module provides standardized logging functions with timestamps, 
- * log levels, and optional context information.
+ * This module provides a sophisticated logging utility with context support,
+ * primarily designed for internal tool and component logging. It offers:
+ * 
+ * Features:
+ * - Context-aware logging with support for requestId, tool, and component tracking
+ * - Debug mode configuration based on environment
+ * - Structured log formatting with timestamps
+ * - Specialized logging functions (debug, info, warn, error)
+ * - Object logging with proper JSON formatting
+ * - Logger factory for creating component-specific loggers
+ * 
+ * Usage:
+ * ```typescript
+ * // Basic usage
+ * import { info, error } from './logger';
+ * info('Operation completed');
+ * error('Operation failed', new Error('Details'));
+ * 
+ * // With context
+ * import { createLogger } from './logger';
+ * const logger = createLogger({ component: 'MyTool' });
+ * logger.info('Starting operation', { requestId: 'req123' });
+ * ```
+ * 
+ * This logger is primarily used by internal tools and components that need
+ * context-aware logging capabilities. For simple file-based logging, use logging.ts instead.
  */
 
 // Log level definitions

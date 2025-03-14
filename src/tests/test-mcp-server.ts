@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { DirectusMCPServer } from './directusMCPServer';
+import { DirectusMCPServer } from '../directusMCPServer';
 import dotenv from 'dotenv';
 import { setupTestPermissions } from './utils/setup-test-permissions';
+import { log } from '../utils/logging';
 
 // Load environment variables
 dotenv.config();
@@ -33,13 +34,13 @@ const mcpServer = new DirectusMCPServer(directusUrl, directusToken);
  * - Delete collection
  */
 async function testBasicCollectionOperations() {
-  console.log("\n=== TEST 1: BASIC COLLECTION OPERATIONS ===\n");
+  log('info', "\n=== TEST 1: BASIC COLLECTION OPERATIONS ===\n");
   
   const testCollectionName = 'test_basic_collection';
   
   try {
     // Step 1: Create a collection
-    console.log(`Creating collection "${testCollectionName}"...`);
+    log('info', `Creating collection "${testCollectionName}"...`);
     
     const createCollectionResult = await mcpServer.invokeTool('createCollection', {
       name: testCollectionName,
@@ -48,10 +49,10 @@ async function testBasicCollectionOperations() {
       }
     });
     
-    console.log('Collection created successfully:', createCollectionResult.result);
+    log('info', `Collection created successfully: ${JSON.stringify(createCollectionResult.result)}`);
     
     // Step 2: Add fields to the collection
-    console.log('\nAdding fields to the collection...');
+    log('info', '\nAdding fields to the collection...');
     
     const fields = [
       { name: 'title', type: 'string' },
@@ -61,7 +62,7 @@ async function testBasicCollectionOperations() {
     ];
     
     for (const field of fields) {
-      console.log(`Creating field "${field.name}" of type "${field.type}"...`);
+      log('info', `Creating field "${field.name}" of type "${field.type}"...`);
       
       const createFieldResult = await mcpServer.invokeTool('createField', {
         collection: testCollectionName,
@@ -69,34 +70,34 @@ async function testBasicCollectionOperations() {
         type: field.type
       });
       
-      console.log(`Field "${field.name}" created successfully`);
+      log('info', `Field "${field.name}" created successfully`);
     }
     
     // Step 3: Delete the fields
-    console.log('\nDeleting fields...');
+    log('info', '\nDeleting fields...');
     
     for (const field of fields) {
-      console.log(`Deleting field "${field.name}"...`);
+      log('info', `Deleting field "${field.name}"...`);
       
       try {
         await directusClient.delete(`/fields/${testCollectionName}/${field.name}`);
-        console.log(`Field "${field.name}" deleted successfully`);
+        log('info', `Field "${field.name}" deleted successfully`);
       } catch (error: any) {
         console.error(`Error deleting field "${field.name}":`, error.message);
       }
     }
     
     // Step 4: Delete the collection
-    console.log('\nDeleting the collection...');
+    log('info', '\nDeleting the collection...');
     
     try {
       const deleteResult = await mcpServer.invokeTool('deleteCollection', { name: testCollectionName });
-      console.log(`Collection "${testCollectionName}" deleted successfully:`, deleteResult.result);
+      log('info', `Collection "${testCollectionName}" deleted successfully: ${JSON.stringify(deleteResult.result)}`);
     } catch (error: any) {
       console.error(`Error deleting collection:`, error.message);
     }
     
-    console.log('\nBasic collection operations test completed successfully!');
+    log('info', '\nBasic collection operations test completed successfully!');
     return true;
     
   } catch (error: any) {
@@ -115,7 +116,7 @@ async function testBasicCollectionOperations() {
  * - Delete collections
  */
 async function testComplexRelationCollections() {
-  console.log("\n=== TEST 2: COMPLEX RELATION COLLECTIONS ===\n");
+  log('info', "\n=== TEST 2: COMPLEX RELATION COLLECTIONS ===\n");
   
   const productsCollection = 'test_products';
   const categoriesCollection = 'test_categories';
@@ -123,7 +124,7 @@ async function testComplexRelationCollections() {
   
   try {
     // Step 1: Create the products collection
-    console.log(`Creating collection "${productsCollection}"...`);
+    log('info', `Creating collection "${productsCollection}"...`);
     
     await mcpServer.invokeTool('createCollection', {
       name: productsCollection,
@@ -132,10 +133,10 @@ async function testComplexRelationCollections() {
       }
     });
     
-    console.log(`Collection "${productsCollection}" created successfully`);
+    log('info', `Collection "${productsCollection}" created successfully`);
     
     // Step 2: Create the categories collection
-    console.log(`\nCreating collection "${categoriesCollection}"...`);
+    log('info', `\nCreating collection "${categoriesCollection}"...`);
     
     await mcpServer.invokeTool('createCollection', {
       name: categoriesCollection,
@@ -144,10 +145,10 @@ async function testComplexRelationCollections() {
       }
     });
     
-    console.log(`Collection "${categoriesCollection}" created successfully`);
+    log('info', `Collection "${categoriesCollection}" created successfully`);
     
     // Step 3: Create the junction collection
-    console.log(`\nCreating junction collection "${junctionCollection}"...`);
+    log('info', `\nCreating junction collection "${junctionCollection}"...`);
     
     await mcpServer.invokeTool('createCollection', {
       name: junctionCollection,
@@ -156,10 +157,10 @@ async function testComplexRelationCollections() {
       }
     });
     
-    console.log(`Collection "${junctionCollection}" created successfully`);
+    log('info', `Collection "${junctionCollection}" created successfully`);
     
     // Step 4: Add fields to products collection
-    console.log('\nAdding fields to products collection...');
+    log('info', '\nAdding fields to products collection...');
     
     await mcpServer.invokeTool('createField', {
       collection: productsCollection,
@@ -167,7 +168,7 @@ async function testComplexRelationCollections() {
       type: 'string'
     });
     
-    console.log(`Field "name" created in products collection`);
+    log('info', `Field "name" created in products collection`);
     
     await mcpServer.invokeTool('createField', {
       collection: productsCollection,
@@ -175,7 +176,7 @@ async function testComplexRelationCollections() {
       type: 'float'
     });
     
-    console.log(`Field "price" created in products collection`);
+    log('info', `Field "price" created in products collection`);
     
     await mcpServer.invokeTool('createField', {
       collection: productsCollection,
@@ -183,10 +184,10 @@ async function testComplexRelationCollections() {
       type: 'text'
     });
     
-    console.log(`Field "description" created in products collection`);
+    log('info', `Field "description" created in products collection`);
     
     // Step 5: Add fields to categories collection
-    console.log('\nAdding fields to categories collection...');
+    log('info', '\nAdding fields to categories collection...');
     
     await mcpServer.invokeTool('createField', {
       collection: categoriesCollection,
@@ -194,7 +195,7 @@ async function testComplexRelationCollections() {
       type: 'string'
     });
     
-    console.log(`Field "name" created in categories collection`);
+    log('info', `Field "name" created in categories collection`);
     
     await mcpServer.invokeTool('createField', {
       collection: categoriesCollection,
@@ -202,10 +203,10 @@ async function testComplexRelationCollections() {
       type: 'text'
     });
     
-    console.log(`Field "description" created in categories collection`);
+    log('info', `Field "description" created in categories collection`);
     
     // Step 6: Add fields to junction collection
-    console.log('\nAdding fields to junction collection...');
+    log('info', '\nAdding fields to junction collection...');
     
     await mcpServer.invokeTool('createField', {
       collection: junctionCollection,
@@ -213,7 +214,7 @@ async function testComplexRelationCollections() {
       type: 'integer'
     });
     
-    console.log(`Field "product_id" created in junction collection`);
+    log('info', `Field "product_id" created in junction collection`);
     
     await mcpServer.invokeTool('createField', {
       collection: junctionCollection,
@@ -221,28 +222,28 @@ async function testComplexRelationCollections() {
       type: 'integer'
     });
     
-    console.log(`Field "category_id" created in junction collection`);
+    log('info', `Field "category_id" created in junction collection`);
     
-    console.log('\nComplex relation collections test completed successfully!');
+    log('info', '\nComplex relation collections test completed successfully!');
     return true;
   } catch (error: any) {
     console.error('Error in complex relation collections test:', error.message);
     
     // Attempt to clean up after error
-    console.log('\nAttempting cleanup after error...');
+    log('info', '\nAttempting cleanup after error...');
     
     try {
-      console.log(`Attempting to delete collection "${junctionCollection}"`);
+      log('info', `Attempting to delete collection "${junctionCollection}"`);
       await directusClient.delete(`/collections/${junctionCollection}`);
-      console.log(`Collection "${junctionCollection}" deleted successfully`);
+      log('info', `Collection "${junctionCollection}" deleted successfully`);
       
-      console.log(`Attempting to delete collection "${productsCollection}"`);
+      log('info', `Attempting to delete collection "${productsCollection}"`);
       await directusClient.delete(`/collections/${productsCollection}`);
-      console.log(`Collection "${productsCollection}" deleted successfully`);
+      log('info', `Collection "${productsCollection}" deleted successfully`);
       
-      console.log(`Attempting to delete collection "${categoriesCollection}"`);
+      log('info', `Attempting to delete collection "${categoriesCollection}"`);
       await directusClient.delete(`/collections/${categoriesCollection}`);
-      console.log(`Collection "${categoriesCollection}" deleted successfully`);
+      log('info', `Collection "${categoriesCollection}" deleted successfully`);
     } catch (cleanupError: any) {
       console.error('Error during cleanup:', cleanupError.message);
     }
@@ -253,7 +254,7 @@ async function testComplexRelationCollections() {
 
 // Run the tests sequentially
 async function runTests() {
-  console.log("Starting MCP server functionality tests...");
+  log('info', "Starting MCP server functionality tests...");
   
   // Run Test 1
   const test1Result = await testBasicCollectionOperations();
@@ -262,16 +263,16 @@ async function runTests() {
   if (test1Result) {
     await testComplexRelationCollections();
   } else {
-    console.log("Skipping Test 2 because Test 1 failed");
+    log('info', "Skipping Test 2 because Test 1 failed");
   }
   
-  console.log("\nTests completed!");
+  log('info', "\nTests completed!");
 }
 
 // Execute the tests
 async function main() {
   // Set up required permissions first
-  console.log("Setting up required permissions before running tests...");
+  log('info', "Setting up required permissions before running tests...");
   const permissionsSetup = await setupTestPermissions();
   
   if (!permissionsSetup) {
