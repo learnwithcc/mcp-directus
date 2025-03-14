@@ -324,8 +324,7 @@ program
       // Format options for selection
       const roleOptions = roles.map((role: any) => ({
         name: `${role.name} (${role.id})`,
-        value: role.id,
-        description: role.description
+        value: role.id
       }));
       
       const policyOptions = policies.map((policy: any) => ({
@@ -334,22 +333,35 @@ program
         description: policy.description || 'No description'
       }));
       
-      // Prompt user to select role and policies
-      const { roleId, policyIds } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'roleId',
-          message: 'Select a role:',
-          choices: roleOptions
-        },
-        {
+      // Define interfaces for the answers
+      interface AssignmentAnswers {
+        roleId: string;
+        policyIds: string[];
+      }
+      
+      // Use a properly typed prompt
+      const answers = await inquirer.prompt<AssignmentAnswers>({
+        type: 'list',
+        name: 'roleId',
+        message: 'Select a role:',
+        choices: roleOptions
+      }).then(async (roleAnswer) => {
+        const policyAnswer = await inquirer.prompt<AssignmentAnswers>({
           type: 'checkbox',
           name: 'policyIds',
           message: 'Select policies to assign:',
           choices: policyOptions,
-          validate: (input: string[]) => input.length > 0 ? true : 'Please select at least one policy'
-        }
-      ]);
+          validate: (input: any) => Array.isArray(input) && input.length > 0 ? true : 'Please select at least one policy'
+        });
+        
+        return {
+          ...roleAnswer,
+          ...policyAnswer
+        };
+      });
+      
+      const roleId = answers.roleId;
+      const policyIds = answers.policyIds;
       
       // Get selected role and policies for display
       const selectedRole = roles.find((r: any) => r.id === roleId);

@@ -14,9 +14,9 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { DirectusMCPServer } from './directusMCPServer';
-import { cleanupCollections } from './utils/create-test-m2m-directly';
-import { createM2MRelationWithHash } from './utils/schemaApplyWithHash';
+import { DirectusMCPServer } from '../directusMCPServer';
+import { cleanupCollections } from '../utils/create-test-m2m-directly';
+import { createM2MRelationWithHash } from '../utils/schemaApplyWithHash';
 
 // Load environment variables
 dotenv.config();

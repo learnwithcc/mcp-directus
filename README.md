@@ -20,6 +20,7 @@ The server exposes Directus functionality as callable tools that AI models can u
 
 The MCP server has been enhanced with several key improvements:
 
+- **TypeScript Strict Mode**: Enhanced type safety with enabled strict mode and additional type checking
 - **Policy Management Tools**: New comprehensive tooling for managing access policies and roles
 - **Standardized Tool Implementation**: All tools now follow a consistent pattern with proper validation, logging, and response formatting
 - **Transaction-like Rollback**: Complex operations like creating relationships now have rollback capabilities if any step fails

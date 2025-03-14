@@ -12,15 +12,15 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { createLogger } from './utils/logger';
-import { createCollection } from './tools/createCollection';
-import { createField } from './tools/createField';
-import { createManyToManyRelation } from './tools/createManyToManyRelation';
-import { createItem } from './tools/createItem';
-import { createAccessPolicy } from './tools/createAccessPolicy';
-import { createRole } from './tools/createRole';
-import { assignPolicyToRole } from './tools/assignPolicyToRole';
-import { deleteCollection } from './tools/deleteCollection';
+import { createLogger } from '../utils/logger';
+import { createCollection } from '../tools/createCollection';
+import { createField } from '../tools/createField';
+import { createManyToManyRelation } from '../tools/createManyToManyRelation';
+import { createItem } from '../tools/createItem';
+import { createAccessPolicy } from '../tools/createAccessPolicy';
+import { createRole } from '../tools/createRole';
+import { assignPolicyToRole } from '../tools/assignPolicyToRole';
+import { deleteCollection } from '../tools/deleteCollection';
 
 // Load environment variables
 dotenv.config();
@@ -62,6 +62,74 @@ const PRODUCTS_COLLECTION = `test_products_${timestamp}`;
 const CATEGORIES_COLLECTION = `test_categories_${timestamp}`;
 const JUNCTION_COLLECTION = `test_products_categories_${timestamp}`;
 
+// Add these interface definitions near the top of the file
+interface CollectionResult {
+  status: string;
+  message: string;
+  details?: any;
+}
+
+// Define a type guard for policy details
+interface PolicySuccessDetails {
+  policyId: string;
+  policy: any;
+}
+
+interface PolicyErrorDetails {
+  statusCode: number;
+  errorDetails: any;
+}
+
+// Update the PolicyResult interface to use discriminated union pattern
+interface PolicyResult {
+  status: string;
+  message: string;
+  details: PolicySuccessDetails | PolicyErrorDetails;
+}
+
+// Type guard function to check if a policy result has a success details
+function hasPolicyId(details: PolicySuccessDetails | PolicyErrorDetails): details is PolicySuccessDetails {
+  return (details as PolicySuccessDetails).policyId !== undefined;
+}
+
+// Define a type guard for role details
+interface RoleSuccessDetails {
+  roleId: string;
+  role: any;
+}
+
+interface RoleErrorDetails {
+  statusCode: number;
+  errorDetails: any;
+}
+
+// Update the RoleResult interface to use discriminated union pattern
+interface RoleResult {
+  status: string;
+  message: string;
+  details: RoleSuccessDetails | RoleErrorDetails;
+}
+
+// Type guard function to check if a role result has a success details
+function hasRoleId(details: RoleSuccessDetails | RoleErrorDetails): details is RoleSuccessDetails {
+  return (details as RoleSuccessDetails).roleId !== undefined;
+}
+
+interface Category {
+  name: string;
+  description: string;
+}
+
+interface Product {
+  name: string;
+  price: number;
+  description: string;
+  in_stock: boolean;
+}
+
+// Initialize the categoryIds array with the correct type
+const categoryIds: string[] = [];
+
 async function clearExistingCollections() {
   logger.info('Clearing existing test collections...');
   
@@ -99,7 +167,7 @@ async function clearExistingPolicies() {
     const policies = policiesResponse.data.data;
     
     // Filter for test policies (those with names starting with 'Test')
-    const testPolicies = policies.filter((policy: any) => 
+    const testPolicies = policies.filter((policy: { name: string; id: string }) => 
       policy.name.startsWith('Test')
     );
     
@@ -151,7 +219,7 @@ async function createCollections() {
   
   try {
     // Create Products collection
-    const productsResult = await createCollectionFn({
+    const productsResult: CollectionResult = await createCollectionFn({
       name: PRODUCTS_COLLECTION,
       meta: {
         display_template: "{{name}}",
@@ -242,7 +310,7 @@ async function createCollections() {
     });
     
     // Create Categories collection
-    const categoriesResult = await createCollectionFn({
+    const categoriesResult: CollectionResult = await createCollectionFn({
       name: CATEGORIES_COLLECTION,
       meta: {
         display_template: "{{name}}",
@@ -313,19 +381,30 @@ async function populateCollections() {
   
   try {
     // Create categories
-    const categories = [
+    const categories: Category[] = [
       { name: "Electronics", description: "Electronic devices and gadgets" },
       { name: "Clothing", description: "Apparel and fashion items" },
       { name: "Home & Kitchen", description: "Items for home and kitchen use" },
       { name: "Books", description: "Books and publications" }
     ];
     
-    const categoryIds = [];
+    // Define the item interface to match the expected response
+    interface ItemResponse {
+      status: string;
+      message: string;
+      details: {
+        item: {
+          id: string;
+          [key: string]: any;
+        };
+      };
+    }
+    
     for (const category of categories) {
       const result = await createItemFn({
         collection: CATEGORIES_COLLECTION,
         item: category
-      });
+      }) as ItemResponse; // Cast to the expected type
       
       if (result.status === 'success') {
         categoryIds.push(result.details.item.id);
@@ -336,7 +415,7 @@ async function populateCollections() {
     }
     
     // Create products (without M2M relationship)
-    const products = [
+    const products: Product[] = [
       { 
         name: "Smartphone", 
         price: 699.99, 
@@ -399,7 +478,7 @@ async function createPoliciesAndRoles() {
     // Create policies with different access levels
     
     // 1. Basic viewer policy - can only view products but not edit
-    const viewerPolicy = await createPolicyFn({
+    const viewerPolicy: PolicyResult = await createPolicyFn({
       name: "Test Viewer Policy",
       description: "Can only view products, no edit permissions",
       app_access: true
@@ -411,23 +490,27 @@ async function createPoliciesAndRoles() {
     
     // After creating the viewer policy, update it with collection permissions
     try {
-      await directusClient.patch(`/policies/${viewerPolicy.details.policyId}`, {
-        collection_list: {
-          [PRODUCTS_COLLECTION]: {
-            read: "full",
-            create: "none",
-            update: "none",
-            delete: "none"
+      if (hasPolicyId(viewerPolicy.details)) {
+        await directusClient.patch(`/policies/${viewerPolicy.details.policyId}`, {
+          collection_list: {
+            [PRODUCTS_COLLECTION]: {
+              read: "full",
+              create: "none",
+              update: "none",
+              delete: "none"
+            }
           }
-        }
-      });
-      logger.info(`Updated viewer policy with collection permissions`);
+        });
+        logger.info(`Updated viewer policy with collection permissions`);
+      } else {
+        logger.error('Cannot update viewer policy: missing policyId');
+      }
     } catch (error: any) {
       logger.error(`Failed to update viewer policy with collection permissions: ${error.message}`);
     }
     
     // 2. Category manager policy - can manage categories but not products
-    const categoryManagerPolicy = await createPolicyFn({
+    const categoryManagerPolicy: PolicyResult = await createPolicyFn({
       name: "Test Category Manager Policy",
       description: "Can manage categories but not products",
       app_access: true
@@ -439,23 +522,27 @@ async function createPoliciesAndRoles() {
     
     // Update category manager policy with collection permissions
     try {
-      await directusClient.patch(`/policies/${categoryManagerPolicy.details.policyId}`, {
-        collection_list: {
-          [CATEGORIES_COLLECTION]: {
-            read: "full",
-            create: "full",
-            update: "full",
-            delete: "full"
+      if (hasPolicyId(categoryManagerPolicy.details)) {
+        await directusClient.patch(`/policies/${categoryManagerPolicy.details.policyId}`, {
+          collection_list: {
+            [CATEGORIES_COLLECTION]: {
+              read: "full",
+              create: "full",
+              update: "full",
+              delete: "full"
+            }
           }
-        }
-      });
-      logger.info(`Updated category manager policy with collection permissions`);
+        });
+        logger.info(`Updated category manager policy with collection permissions`);
+      } else {
+        logger.error('Cannot update category manager policy: missing policyId');
+      }
     } catch (error: any) {
       logger.error(`Failed to update category manager policy with collection permissions: ${error.message}`);
     }
     
     // 3. Product editor policy - can edit products but not delete
-    const productEditorPolicy = await createPolicyFn({
+    const productEditorPolicy: PolicyResult = await createPolicyFn({
       name: "Test Product Editor Policy",
       description: "Can edit products but not delete them",
       app_access: true
@@ -467,23 +554,27 @@ async function createPoliciesAndRoles() {
     
     // Update product editor policy with collection permissions
     try {
-      await directusClient.patch(`/policies/${productEditorPolicy.details.policyId}`, {
-        collection_list: {
-          [PRODUCTS_COLLECTION]: {
-            read: "full",
-            create: "full",
-            update: "full",
-            delete: "none"
+      if (hasPolicyId(productEditorPolicy.details)) {
+        await directusClient.patch(`/policies/${productEditorPolicy.details.policyId}`, {
+          collection_list: {
+            [PRODUCTS_COLLECTION]: {
+              read: "full",
+              create: "full",
+              update: "full",
+              delete: "none"
+            }
           }
-        }
-      });
-      logger.info(`Updated product editor policy with collection permissions`);
+        });
+        logger.info(`Updated product editor policy with collection permissions`);
+      } else {
+        logger.error('Cannot update product editor policy: missing policyId');
+      }
     } catch (error: any) {
       logger.error(`Failed to update product editor policy with collection permissions: ${error.message}`);
     }
     
     // 4. Full access policy - can do everything
-    const fullAccessPolicy = await createPolicyFn({
+    const fullAccessPolicy: PolicyResult = await createPolicyFn({
       name: "Test Full Access Policy",
       description: "Full access to all test collections",
       app_access: true
@@ -495,29 +586,33 @@ async function createPoliciesAndRoles() {
     
     // Update full access policy with collection permissions
     try {
-      await directusClient.patch(`/policies/${fullAccessPolicy.details.policyId}`, {
-        collection_list: {
-          [PRODUCTS_COLLECTION]: {
-            read: "full",
-            create: "full",
-            update: "full",
-            delete: "full"
-          },
-          [CATEGORIES_COLLECTION]: {
-            read: "full",
-            create: "full",
-            update: "full",
-            delete: "full"
-          },
-          [JUNCTION_COLLECTION]: {
-            read: "full",
-            create: "full",
-            update: "full",
-            delete: "full"
+      if (hasPolicyId(fullAccessPolicy.details)) {
+        await directusClient.patch(`/policies/${fullAccessPolicy.details.policyId}`, {
+          collection_list: {
+            [PRODUCTS_COLLECTION]: {
+              read: "full",
+              create: "full",
+              update: "full",
+              delete: "full"
+            },
+            [CATEGORIES_COLLECTION]: {
+              read: "full",
+              create: "full",
+              update: "full",
+              delete: "full"
+            },
+            [JUNCTION_COLLECTION]: {
+              read: "full",
+              create: "full",
+              update: "full",
+              delete: "full"
+            }
           }
-        }
-      });
-      logger.info(`Updated full access policy with collection permissions`);
+        });
+        logger.info(`Updated full access policy with collection permissions`);
+      } else {
+        logger.error('Cannot update full access policy: missing policyId');
+      }
     } catch (error: any) {
       logger.error(`Failed to update full access policy with collection permissions: ${error.message}`);
     }
@@ -525,7 +620,7 @@ async function createPoliciesAndRoles() {
     // Create roles with stacked policies
     
     // 1. Viewer role - has only viewer policy
-    const viewerRole = await createRoleFn({
+    const viewerRole: RoleResult = await createRoleFn({
       name: "Test Viewer Role",
       description: "Can only view products"
     });
@@ -535,7 +630,7 @@ async function createPoliciesAndRoles() {
     }
     
     // 2. Category Manager role - has viewer + category manager policies
-    const categoryManagerRole = await createRoleFn({
+    const categoryManagerRole: RoleResult = await createRoleFn({
       name: "Test Category Manager Role",
       description: "Can view products and manage categories"
     });
@@ -545,7 +640,7 @@ async function createPoliciesAndRoles() {
     }
     
     // 3. Product Editor role - has viewer + category manager + product editor policies
-    const productEditorRole = await createRoleFn({
+    const productEditorRole: RoleResult = await createRoleFn({
       name: "Test Product Editor Role",
       description: "Can view and edit products, and manage categories"
     });
@@ -555,7 +650,7 @@ async function createPoliciesAndRoles() {
     }
     
     // 4. Admin role - has all policies
-    const adminRole = await createRoleFn({
+    const adminRole: RoleResult = await createRoleFn({
       name: "Test Admin Role",
       description: "Has full access to all test collections"
     });
@@ -570,37 +665,54 @@ async function createPoliciesAndRoles() {
     // Try to assign policies to roles, but this might fail due to permissions
     try {
       // Assign viewer policy to viewer role
-      await assignPolicyFn({
-        roleId: viewerRole.details.roleId,
-        policyIds: [viewerPolicy.details.policyId]
-      });
+      if (hasRoleId(viewerRole.details) && hasPolicyId(viewerPolicy.details)) {
+        await assignPolicyFn({
+          roleId: viewerRole.details.roleId,
+          policyIds: [viewerPolicy.details.policyId]
+        });
+      }
       
       // Assign viewer + category manager policies to category manager role
-      await assignPolicyFn({
-        roleId: categoryManagerRole.details.roleId,
-        policyIds: [viewerPolicy.details.policyId, categoryManagerPolicy.details.policyId]
-      });
+      if (hasRoleId(categoryManagerRole.details) && 
+          hasPolicyId(viewerPolicy.details) && 
+          hasPolicyId(categoryManagerPolicy.details)) {
+        await assignPolicyFn({
+          roleId: categoryManagerRole.details.roleId,
+          policyIds: [viewerPolicy.details.policyId, categoryManagerPolicy.details.policyId]
+        });
+      }
       
       // Assign viewer + category manager + product editor policies to product editor role
-      await assignPolicyFn({
-        roleId: productEditorRole.details.roleId,
-        policyIds: [
-          viewerPolicy.details.policyId, 
-          categoryManagerPolicy.details.policyId,
-          productEditorPolicy.details.policyId
-        ]
-      });
+      if (hasRoleId(productEditorRole.details) && 
+          hasPolicyId(viewerPolicy.details) && 
+          hasPolicyId(categoryManagerPolicy.details) && 
+          hasPolicyId(productEditorPolicy.details)) {
+        await assignPolicyFn({
+          roleId: productEditorRole.details.roleId,
+          policyIds: [
+            viewerPolicy.details.policyId, 
+            categoryManagerPolicy.details.policyId,
+            productEditorPolicy.details.policyId
+          ]
+        });
+      }
       
       // Assign all policies to admin role
-      await assignPolicyFn({
-        roleId: adminRole.details.roleId,
-        policyIds: [
-          viewerPolicy.details.policyId, 
-          categoryManagerPolicy.details.policyId,
-          productEditorPolicy.details.policyId,
-          fullAccessPolicy.details.policyId
-        ]
-      });
+      if (hasRoleId(adminRole.details) && 
+          hasPolicyId(viewerPolicy.details) && 
+          hasPolicyId(categoryManagerPolicy.details) && 
+          hasPolicyId(productEditorPolicy.details) && 
+          hasPolicyId(fullAccessPolicy.details)) {
+        await assignPolicyFn({
+          roleId: adminRole.details.roleId,
+          policyIds: [
+            viewerPolicy.details.policyId, 
+            categoryManagerPolicy.details.policyId,
+            productEditorPolicy.details.policyId,
+            fullAccessPolicy.details.policyId
+          ]
+        });
+      }
       
       logger.info('Successfully assigned policies to roles');
     } catch (error: any) {
@@ -610,35 +722,63 @@ async function createPoliciesAndRoles() {
       logger.info('To complete the test, manually connect the policies to the roles using the Directus Admin app:');
       logger.info('');
       logger.info(`1. Go to Settings > Roles in the Directus Admin app`);
-      logger.info(`2. For "Test Viewer Role" (${viewerRole.details.roleId}):`);
-      logger.info(`   - Click on the role to edit it`);
-      logger.info(`   - Scroll down to the "Permissions" section`);
-      logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
-      logger.info(`   - Save the role`);
+      if (hasRoleId(viewerRole.details)) {
+        logger.info(`2. For "Test Viewer Role" (${viewerRole.details.roleId}):`);
+        logger.info(`   - Click on the role to edit it`);
+        logger.info(`   - Scroll down to the "Permissions" section`);
+        if (hasPolicyId(viewerPolicy.details)) {
+          logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
+        }
+        logger.info(`   - Save the role`);
+      }
       logger.info('');
-      logger.info(`3. For "Test Category Manager Role" (${categoryManagerRole.details.roleId}):`);
-      logger.info(`   - Click on the role to edit it`);
-      logger.info(`   - Scroll down to the "Permissions" section`);
-      logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
-      logger.info(`   - Save the role`);
+      if (hasRoleId(categoryManagerRole.details)) {
+        logger.info(`3. For "Test Category Manager Role" (${categoryManagerRole.details.roleId}):`);
+        logger.info(`   - Click on the role to edit it`);
+        logger.info(`   - Scroll down to the "Permissions" section`);
+        if (hasPolicyId(viewerPolicy.details)) {
+          logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(categoryManagerPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
+        }
+        logger.info(`   - Save the role`);
+      }
       logger.info('');
-      logger.info(`4. For "Test Product Editor Role" (${productEditorRole.details.roleId}):`);
-      logger.info(`   - Click on the role to edit it`);
-      logger.info(`   - Scroll down to the "Permissions" section`);
-      logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Product Editor Policy" (${productEditorPolicy.details.policyId})`);
-      logger.info(`   - Save the role`);
+      if (hasRoleId(productEditorRole.details)) {
+        logger.info(`4. For "Test Product Editor Role" (${productEditorRole.details.roleId}):`);
+        logger.info(`   - Click on the role to edit it`);
+        logger.info(`   - Scroll down to the "Permissions" section`);
+        if (hasPolicyId(viewerPolicy.details)) {
+          logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(categoryManagerPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(productEditorPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Product Editor Policy" (${productEditorPolicy.details.policyId})`);
+        }
+        logger.info(`   - Save the role`);
+      }
       logger.info('');
-      logger.info(`5. For "Test Admin Role" (${adminRole.details.roleId}):`);
-      logger.info(`   - Click on the role to edit it`);
-      logger.info(`   - Scroll down to the "Permissions" section`);
-      logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Product Editor Policy" (${productEditorPolicy.details.policyId})`);
-      logger.info(`   - Click "Add New" again and select "Test Full Access Policy" (${fullAccessPolicy.details.policyId})`);
-      logger.info(`   - Save the role`);
+      if (hasRoleId(adminRole.details)) {
+        logger.info(`5. For "Test Admin Role" (${adminRole.details.roleId}):`);
+        logger.info(`   - Click on the role to edit it`);
+        logger.info(`   - Scroll down to the "Permissions" section`);
+        if (hasPolicyId(viewerPolicy.details)) {
+          logger.info(`   - Click "Add New" and select "Test Viewer Policy" (${viewerPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(categoryManagerPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Category Manager Policy" (${categoryManagerPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(productEditorPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Product Editor Policy" (${productEditorPolicy.details.policyId})`);
+        }
+        if (hasPolicyId(fullAccessPolicy.details)) {
+          logger.info(`   - Click "Add New" again and select "Test Full Access Policy" (${fullAccessPolicy.details.policyId})`);
+        }
+        logger.info(`   - Save the role`);
+      }
       logger.info('');
       logger.info(`6. To test the roles, create a user for each role and test their access levels`);
       logger.info('');
@@ -646,16 +786,16 @@ async function createPoliciesAndRoles() {
     
     return {
       policies: {
-        viewer: viewerPolicy.details.policyId,
-        categoryManager: categoryManagerPolicy.details.policyId,
-        productEditor: productEditorPolicy.details.policyId,
-        fullAccess: fullAccessPolicy.details.policyId
+        viewer: hasPolicyId(viewerPolicy.details) ? viewerPolicy.details.policyId : '',
+        categoryManager: hasPolicyId(categoryManagerPolicy.details) ? categoryManagerPolicy.details.policyId : '',
+        productEditor: hasPolicyId(productEditorPolicy.details) ? productEditorPolicy.details.policyId : '',
+        fullAccess: hasPolicyId(fullAccessPolicy.details) ? fullAccessPolicy.details.policyId : ''
       },
       roles: {
-        viewer: viewerRole.details.roleId,
-        categoryManager: categoryManagerRole.details.roleId,
-        productEditor: productEditorRole.details.roleId,
-        admin: adminRole.details.roleId
+        viewer: hasRoleId(viewerRole.details) ? viewerRole.details.roleId : '',
+        categoryManager: hasRoleId(categoryManagerRole.details) ? categoryManagerRole.details.roleId : '',
+        productEditor: hasRoleId(productEditorRole.details) ? productEditorRole.details.roleId : '',
+        admin: hasRoleId(adminRole.details) ? adminRole.details.roleId : ''
       }
     };
   } catch (error: any) {

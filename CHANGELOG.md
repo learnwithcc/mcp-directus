@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-03-15
+
+### Added
+- Re-enabled TypeScript strict mode for improved type safety
+- Added proper type definitions in test files
+- Implemented type guards for safer property access in test code
+
+### Changed
+- Updated build process to separately handle core and test files
+- Improved TypeScript configuration with additional strict type checks
+- Enhanced type definitions in utility modules
+- Implemented proper error handling for type safety
+
+### Fixed
+- Fixed type-related issues in logger implementation
+- Addressed union type safety issues in policy management tests
+- Fixed array initialization type errors
+
 ## [1.1.1] - 2025-03-14
 
 ### Added

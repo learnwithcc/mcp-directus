@@ -72,7 +72,7 @@ function formatLogMessage(level: LogLevel, message: string, context?: LogContext
   
   let contextStr = '';
   if (context) {
-    const contextParts = [];
+    const contextParts: Array<string> = [];
     
     if (context.requestId) contextParts.push(`req=${context.requestId}`);
     if (context.tool) contextParts.push(`tool=${context.tool}`);
@@ -169,4 +169,24 @@ export function createLogger(defaultContext: LogContext) {
     },
     logObject: (message: string, obj: any, context?: LogContext) => logObject(message, obj, { ...defaultContext, ...context })
   };
+}
+
+// Format context information
+function formatContext(context: LogContext): string {
+  if (!context || Object.keys(context).length === 0) return '';
+  
+  const contextParts: Array<string> = [];
+  
+  if (context.requestId) contextParts.push(`req=${context.requestId}`);
+  if (context.tool) contextParts.push(`tool=${context.tool}`);
+  if (context.component) contextParts.push(`component=${context.component}`);
+  
+  // Add any custom context values
+  Object.entries(context).forEach(([key, value]) => {
+    if (!['requestId', 'tool', 'component'].includes(key)) {
+      contextParts.push(`${key}=${typeof value === 'object' ? JSON.stringify(value) : value}`);
+    }
+  });
+  
+  return contextParts.length > 0 ? `[${contextParts.join(' ')}]` : '';
 } 

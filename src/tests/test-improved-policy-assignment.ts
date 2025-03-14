@@ -7,10 +7,10 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { createAccessPolicy } from './tools/createAccessPolicy';
-import { createRole } from './tools/createRole';
-import { improvedAssignPolicyToRole } from './tools/improvedAssignPolicyToRole';
-import { createLogger } from './utils/logger';
+import { createAccessPolicy } from '../tools/createAccessPolicy';
+import { createRole } from '../tools/createRole';
+import { improvedAssignPolicyToRole } from '../tools/improvedAssignPolicyToRole';
+import { createLogger } from '../utils/logger';
 
 // Load environment variables
 dotenv.config();
@@ -113,20 +113,20 @@ async function runTest() {
     ]);
     
     // Check if all policies were created successfully
-    const failedPolicies = policies.filter(p => p.status !== 'success');
+    const failedPolicies = policies.filter((p: any) => p.status !== 'success');
     if (failedPolicies.length > 0) {
       logger.error(`Failed to create ${failedPolicies.length} policies`);
-      failedPolicies.forEach(p => {
+      failedPolicies.forEach((p: any) => {
         logger.error(`- ${p.message}`);
       });
       return;
     }
     
     // Extract policy IDs
-    const policyIds = policies.map(p => p.details.policyId);
+    const policyIds = policies.map((p: any) => p.details.policyId);
     
     logger.info(`Created ${policyIds.length} test policies:`);
-    policies.forEach((p, i) => {
+    policies.forEach((p: any, i: number) => {
       logger.info(`- Policy ${i+1}: ${p.details.policy.name} (${p.details.policyId})`);
     });
     
@@ -150,7 +150,7 @@ async function runTest() {
       logger.info('✅ SUCCESSFUL POLICY ASSIGNMENT!');
       
       // Log which approach worked
-      const successfulAttempt = assignmentResult.details?.attempts?.find(a => a.success);
+      const successfulAttempt = assignmentResult.details?.attempts?.find((a: any) => a.success);
       if (successfulAttempt) {
         logger.info(`✅ Successful method: ${successfulAttempt.method}`);
         
@@ -185,7 +185,7 @@ async function runTest() {
       // Log all attempted approaches
       if (assignmentResult.details?.attempts) {
         logger.info('Attempted approaches:');
-        assignmentResult.details.attempts.forEach((attempt, i) => {
+        assignmentResult.details.attempts.forEach((attempt: any, i: number) => {
           logger.info(`- Approach ${i+1} (${attempt.method}): ${attempt.success ? 'SUCCESS' : 'FAILED'}`);
           if (!attempt.success && attempt.error?.response?.status) {
             logger.info(`  Status: ${attempt.error.response.status}`);
@@ -215,7 +215,7 @@ async function runTest() {
       logger.info(`Role "${roleWithPolicies.name}" has ${assignedPolicies.length} policies assigned`);
       
       // Calculate how many of our test policies were successfully assigned
-      const successfullyAssigned = policyIds.filter(id => assignedPolicies.includes(id));
+      const successfullyAssigned = policyIds.filter((id: string) => assignedPolicies.includes(id));
       logger.info(`${successfullyAssigned.length} out of ${policyIds.length} test policies were successfully assigned`);
       
       if (successfullyAssigned.length === policyIds.length) {

@@ -6,9 +6,9 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { createAccessPolicy } from './tools/createAccessPolicy';
-import { createRole } from './tools/createRole';
-import { createLogger } from './utils/logger';
+import { createAccessPolicy } from '../tools/createAccessPolicy';
+import { createRole } from '../tools/createRole';
+import { createLogger } from '../utils/logger';
 
 // Load environment variables
 dotenv.config();

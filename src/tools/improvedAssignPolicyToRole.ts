@@ -42,6 +42,11 @@ interface AssignmentAttemptResult {
   response?: any;
 }
 
+interface SchemaResponseData {
+  // Define the response data structure here
+  [key: string]: any;
+}
+
 /**
  * Improved policy assignment tool that tries multiple approaches
  * to overcome permission issues with Directus
@@ -178,7 +183,7 @@ export function improvedAssignPolicyToRole(directusClient: AxiosInstance) {
           opLogger.info('Approach 3: Using directus_access junction table');
           
           // For each policy, create an entry in the directus_access table
-          const results = [];
+          const results: SchemaResponseData[] = [];
           for (const policyId of policyIdsArray) {
             const response = await directusClient.post('/items/directus_access', {
               role: params.roleId,
