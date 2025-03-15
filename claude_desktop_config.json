@@ -1,9 +1,18 @@
 {
   "mcpServers": {
     "directus-mcp": {
-      "url": "http://localhost:3000/mcp/v1",
+      "command": "node",
+      "args": [
+        "/Users/username/dev/projects/mcp-directus/dist/cli/mcp-cli.js"
+      ],
+      "env": {
+        "DIRECTUS_URL": "http://localhost:8077",
+        "DIRECTUS_ADMIN_TOKEN": "your_admin_token_here",
+        "MCP_MODE": "true",
+        "MCP_LOG_MODE": "stderr"
+      },
       "description": "Directus CMS Integration",
       "enabled": true
     }
   }
-} 
+}

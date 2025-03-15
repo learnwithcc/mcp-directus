@@ -31,8 +31,59 @@ The MCP server has been enhanced with several key improvements:
 - **Special Collection Handling**: Proper handling of Directus system collections (users, files, roles)
 - **Robust Schema Operations**: New hash-validated approach for schema changes with proper retry logic and idempotent operations
 - **Better M2M Relationship Creation**: Enhanced support for complex relationships using the schema/apply endpoint
+- **MCP Protocol CLI Interface**: Native support for the Model Context Protocol's CLI interface, enabling direct integration with Claude Desktop and other MCP clients
 
 See the [Implementation Improvements](./docs/implementation-improvements.md) document for more details.
+
+## MCP Integration
+
+The server supports two modes of operation:
+
+### HTTP API Mode
+
+The standard mode that exposes MCP endpoints via HTTP, suitable for web-based integrations:
+
+```bash
+# Start the HTTP API server
+npm start
+```
+
+The server will be available at `http://localhost:3000/mcp/v1`.
+
+### CLI Interface Mode
+
+A direct MCP protocol interface via stdin/stdout for integration with Claude Desktop and other MCP clients:
+
+```bash
+# Run the MCP CLI interface in development mode
+npm run mcp
+
+# Run the MCP CLI interface from compiled code
+npm run mcp:prod
+```
+
+To configure Claude Desktop to use the MCP server, add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "directus-mcp": {
+      "command": "node",
+      "args": [
+        "/path/to/mcp-directus/dist/cli/mcp-cli.js"
+      ],
+      "env": {
+        "DIRECTUS_URL": "https://your-directus-instance.com",
+        "DIRECTUS_ADMIN_TOKEN": "your_admin_token_here",
+        "MCP_MODE": "true",
+        "MCP_LOG_MODE": "stderr"
+      },
+      "description": "Directus CMS Integration",
+      "enabled": true
+    }
+  }
+}
+```
 
 ## Logging System
 

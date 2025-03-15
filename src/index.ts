@@ -8,6 +8,16 @@ import { log } from './utils/logging';
 // Load environment variables
 dotenv.config();
 
+// Check for MCP mode from environment or command-line arguments
+if (process.argv.includes('--mcp-mode') || process.env.MCP_MODE === 'true') {
+  process.env.MCP_MODE = 'true';
+  
+  // Default to stderr for logs in MCP mode unless otherwise specified
+  if (!process.env.MCP_LOG_MODE) {
+    process.env.MCP_LOG_MODE = 'stderr';
+  }
+}
+
 const app = express();
 app.use(express.json());
 
@@ -22,7 +32,7 @@ const directusToken = process.env.DIRECTUS_ADMIN_TOKEN || '';
 async function validateEnvironment() {
   // Check required environment variables
   if (!directusToken) {
-    console.error('ERROR: DIRECTUS_ADMIN_TOKEN is required. Please set it in your .env file.');
+    log('error', 'DIRECTUS_ADMIN_TOKEN is required. Please set it in your .env file.');
     return false;
   }
 
@@ -30,8 +40,8 @@ async function validateEnvironment() {
   try {
     new URL(directusUrl);
   } catch (error) {
-    console.error(`ERROR: DIRECTUS_URL is invalid: ${directusUrl}`);
-    console.error('Please provide a valid URL in your .env file.');
+    log('error', `DIRECTUS_URL is invalid: ${directusUrl}`);
+    log('error', 'Please provide a valid URL in your .env file.');
     return false;
   }
 
@@ -49,17 +59,17 @@ async function validateEnvironment() {
   } catch (error) {
     if (error instanceof AxiosError) {
       if (!error.response) {
-        console.error(`ERROR: Could not connect to Directus at ${directusUrl}`);
-        console.error('Please check that the server is running and the URL is correct.');
+        log('error', `Could not connect to Directus at ${directusUrl}`);
+        log('error', 'Please check that the server is running and the URL is correct.');
       } else if (error.response.status === 401) {
-        console.error('ERROR: Authentication failed. Your admin token may be invalid or expired.');
-        console.error('Please check your DIRECTUS_ADMIN_TOKEN in the .env file.');
+        log('error', 'ERROR: Authentication failed. Your admin token may be invalid or expired.');
+        log('error', 'Please check your DIRECTUS_ADMIN_TOKEN in the .env file.');
       } else {
-        console.error(`ERROR: Failed to connect to Directus: ${error.message}`);
-        console.error(`Status: ${error.response?.status} ${error.response?.statusText}`);
+        log('error', `ERROR: Failed to connect to Directus: ${error.message}`);
+        log('error', `Status: ${error.response?.status} ${error.response?.statusText}`);
       }
     } else {
-      console.error(`ERROR: Failed to connect to Directus: ${error}`);
+      log('error', `ERROR: Failed to connect to Directus: ${error}`);
     }
     return false;
   }
@@ -97,12 +107,19 @@ async function startApp() {
       magenta: '\x1b[35m'
     };
     
-    // Clear screen for better readability
-    console.clear();
-    const divider = '==================================================';
-    log('info', `${colors.bright}${divider}${colors.reset}`);
-    log('info', `${colors.magenta}${colors.bright}          Directus MCP Server - Starting           ${colors.reset}`);
-    log('info', `${colors.bright}${divider}${colors.reset}`);
+    // Skip fancy output in MCP mode
+    const isMcpMode = process.env.MCP_MODE === 'true';
+    
+    if (!isMcpMode) {
+      // Clear screen for better readability in regular mode
+      console.clear();
+      const divider = '==================================================';
+      log('info', `${colors.bright}${divider}${colors.reset}`);
+      log('info', `${colors.magenta}${colors.bright}          Directus MCP Server - Starting           ${colors.reset}`);
+      log('info', `${colors.bright}${divider}${colors.reset}`);
+    } else {
+      log('info', 'Directus MCP Server - Starting in MCP mode');
+    }
     
     // Validate the environment
     log('info', 'Validating environment...');

@@ -10,6 +10,7 @@
  * - Basic log levels (info, warn, error, debug)
  * - Timestamp-based log formatting
  * - Multiple log files support (server.log, server_output.log)
+ * - MCP compatibility mode to redirect logs to stderr or disable console output
  * 
  * Usage:
  * ```typescript
@@ -38,6 +39,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Check if running in MCP mode
+const isMcpMode = process.env.MCP_MODE === 'true';
+// Check log mode for MCP: 'none' (no console), 'stderr' (redirect to stderr), or 'normal' (standard behavior)
+const mcpLogMode = process.env.MCP_LOG_MODE || 'stderr';
 
 // Ensure logs directory exists
 const logsDir = path.join(process.cwd(), 'logs');
@@ -106,8 +112,22 @@ export function log(messageOrLevel: string | LogLevel, messageOrOptions?: string
 
     const { console: toConsole = true, file: toFile = true, logFile = logFilePaths.server } = options;
     
+    // Handle console output based on MCP mode
     if (toConsole) {
-        console.log(`${formatLogLevel(level)} ${finalMessage}`);
+        if (isMcpMode) {
+            if (mcpLogMode === 'none') {
+                // Skip console output in MCP mode with 'none' setting
+            } else if (mcpLogMode === 'stderr') {
+                // Send to stderr instead of stdout in MCP mode
+                process.stderr.write(`${formatLogLevel(level)} ${finalMessage}\n`);
+            } else {
+                // Default behavior if MCP_LOG_MODE is not recognized
+                console.log(`${formatLogLevel(level)} ${finalMessage}`);
+            }
+        } else {
+            // Regular behavior when not in MCP mode
+            console.log(`${formatLogLevel(level)} ${finalMessage}`);
+        }
     }
     
     if (toFile) {
